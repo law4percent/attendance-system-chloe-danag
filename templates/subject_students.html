@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enrolled Students</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f7fa;
+      margin: 0;
+      padding: 30px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      background: white;
+      width: 900px;
+      padding: 30px 40px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+    }
+    h2 {
+      color: #343a40;
+      font-weight: 700;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 10px;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+    th, td {
+      padding: 14px 18px;
+      text-align: center;
+      border: 1px solid #ddd;
+      font-size: 1rem;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+      font-weight: 700;
+    }
+    tr:nth-child(even) {
+      background-color: #f9fbfd;
+    }
+    tr:hover {
+      background-color: #e6f0ff;
+    }
+    a {
+      text-decoration: none;
+      color: #007bff;
+      font-weight: 600;
+      margin-right: 25px;
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+    a:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+    .links {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Students Enrolled in {{ subject[0] }} - {{ subject[1] }}{{ subject[2] }}</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Last Name</th>
+          <th>First Name</th>
+          <th>Middle Name</th>
+          <th>School ID</th>
+          <th>COR Link</th>
+          <th>Action</th> <!-- New column -->
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+          <tr>
+            <td>{{ student[1] }}</td> <!-- Last Name -->
+            <td>{{ student[0] }}</td> <!-- First Name -->
+            <td>{{ student[4] or '-' }}</td> <!-- Middle Name -->
+            <td>{{ student[2] }}</td> <!-- School ID -->
+            <td><a href="{{ student[3] }}" target="_blank" rel="noopener noreferrer">View COR</a></td>
+            <td>
+              <a href="{{ url_for('unenroll_student', subject_id=subject_id, student_id=student[5]) }}" 
+                onclick="return confirm('Are you sure you want to unenroll this student?');" 
+                style="color: red; font-weight: bold;">
+                Unenroll
+              </a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6" style="font-style: italic; color: #666;">No students enrolled yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="links">
+      <a href="{{ url_for('instructor_profile') }}">&#8592; Back to Dashboard</a>
+      <a href="{{ url_for('subject_requests', subject_id=subject_id) }}">
+        View Pending Requests ({{ pending_count or 0 }})
+      </a>
+    </div>
+  </div>
+</body>
+</html>
+

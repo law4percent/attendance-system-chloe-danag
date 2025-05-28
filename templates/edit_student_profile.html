@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Edit Student Profile</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f4f8;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 50px auto;
+      background: #fff;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    form label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    form input[type="text"],
+    form input[type="email"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    form input:disabled {
+      background-color: #f5f5f5;
+      color: #888;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .links {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .links a {
+      color: #007bff;
+      margin: 0 10px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .links a:hover {
+      text-decoration: underline;
+    }
+
+    .message {
+      color: green;
+      margin-top: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Edit Profile</h2>
+
+    <form method="POST" action="/edit_student_profile">
+      <label>First Name*:</label>
+      <input type="text" name="first_name" value="{{ student.first_name }}" required>
+
+      <label>Middle Name:</label>
+      <input type="text" name="middle_name" value="{{ student.middle_name }}">
+
+      <label>Last Name*:</label>
+      <input type="text" name="last_name" value="{{ student.last_name }}" required>
+
+      <label>School ID*:</label>
+      <input type="text" name="school_id" value="{{ student.school_ID }}" required>
+
+      <label>Section*:</label>
+      <input type="text" name="section" value="{{ student.section }}" required>
+
+      <label>Year Level*:</label>
+      <input type="text" name="year_level" value="{{ student.college_year_level }}" required>
+
+      <label>COR Link*:</label>
+      <input type="text" name="cor_link" value="{{ student.COR_link }}" required>
+
+      <label>Email (username)*:</label>
+      <input type="email" value="{{ student.email }}" disabled>
+
+      <button type="submit">Save Changes</button>
+    </form>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="message">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="links">
+      <a href="/student_profile">Back to Profile</a> |
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+</body>
+</html>

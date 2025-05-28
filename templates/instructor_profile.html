@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Instructor Dashboard</title>
+  <style>
+    body {
+      background: #f0f2f5;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 30px 35px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      width: 800px;
+      box-sizing: border-box;
+    }
+    h2 {
+      color: #007bff;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+    h3 {
+      margin-top: 30px;
+      margin-bottom: 15px;
+      color: #333;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 5px;
+      font-weight: 600;
+    }
+    h4 {
+      margin-top: 20px;
+      color: #555;
+    }
+    form input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 18px;
+      border: 1.5px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+      box-sizing: border-box;
+    }
+    form input[type="text"]:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+    button {
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 1.1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f8f9fa;
+    }
+    a {
+      text-decoration: none;
+      font-weight: 600;
+    }
+    a.edit-link {
+      color: green;
+    }
+    a.delete-link {
+      color: red;
+    }
+    a.subject-link {
+      color: #007bff;
+    }
+    .logout-link {
+      display: block;
+      margin-top: 35px;
+      text-align: center;
+      font-size: 1rem;
+    }
+    .logout-link a {
+      color: #dc3545;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .logout-link a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Welcome, {{ instructor }}</h2>
+
+    <h3>Add New Subject</h3>
+    <form method="POST" action="/add_subject">
+      <input type="text" name="subject" placeholder="Subject Name" required />
+      <input type="text" name="course_level" placeholder="Course Level (1 to 4)" required />
+      <input type="text" name="section" placeholder="Section" required />
+      <button type="submit">Add Subject</button>
+    </form>
+
+    <h3>Assigned Subjects</h3>
+
+    {% for year_level, subjects in grouped_subjects.items() %}
+      <h4>Year Level: {{ year_level }} ({{ subjects|length }} lists)</h4>
+      {% if subjects %}
+        <table>
+        <thead>
+            <tr>
+            <th>Subject Code</th>
+            <th>Section</th>
+            <th>Number of Enrolled</th> <!-- If you still want to keep this -->
+            <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for subject in subjects %}
+            <tr>
+                <td>
+                <a href="/subject/{{ subject.id }}" class="subject-link">
+                    {{ subject.subject_code or 'Unnamed Subject' }}
+                </a>
+                </td>
+                <td>{{ subject.section or "No Section" }}</td>
+                <td>{{ subject.enrolled_count or 0 }}</td> <!-- Assuming you pass this from backend -->
+                <td>
+                <a href="/delete_subject/{{ subject.id }}" class="delete-link" onclick="return confirm('Are you sure you want to delete this subject?')">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+      {% else %}
+        <p>No subjects for {{ year_level }}.</p>
+      {% endif %}
+    {% endfor %}
+
+    <div class="logout-link">
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+</body>
+</html>
