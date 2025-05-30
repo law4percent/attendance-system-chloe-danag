@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for
+from flask import Flask, render_template, request, redirect, session, flash, url_for, jsonify
 from flask_mysqldb import MySQL
 from MySQLdb.cursors import DictCursor
 import config
@@ -273,8 +273,14 @@ def unenroll_student(subject_id, student_id):
         return redirect('/login')
 
     cur = mysql.connection.cursor()
-    # Delete the record linking this student and subject
+    # Remove from enrolled list
     cur.execute("DELETE FROM student_subjects WHERE subject_id = %s AND student_id = %s", (subject_id, student_id))
+    # Reset request status
+    cur.execute("""
+        UPDATE student_subject_requests
+        SET status = 'rejected'
+        WHERE subject_id = %s AND student_id = %s
+    """, (subject_id, student_id))
     mysql.connection.commit()
 
     flash('Student has been unenrolled successfully.', 'success')
