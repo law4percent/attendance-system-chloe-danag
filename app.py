@@ -3,6 +3,7 @@ from flask_mysqldb import MySQL
 from MySQLdb.cursors import DictCursor
 import config
 from functools import wraps
+from collections import defaultdict
 
 def role_required(role):
     def decorator(f):
@@ -192,10 +193,16 @@ def delete_subject(subject_id):
     instructor_id = session.get('user')
 
     cur = mysql.connection.cursor()
-    # Verify the subject belongs to this instructor before deleting
+    # Verify subject ownership
     cur.execute("SELECT id FROM subjects WHERE id = %s AND instructor_id = %s", (subject_id, instructor_id))
     subject = cur.fetchone()
+
     if subject:
+        # Delete dependent rows in student_subject_requests
+        cur.execute("DELETE FROM student_subject_requests WHERE subject_id = %s", (subject_id,))
+        # Delete dependent rows in student_subjects
+        cur.execute("DELETE FROM student_subjects WHERE subject_id = %s", (subject_id,))
+        # Now delete the subject itself
         cur.execute("DELETE FROM subjects WHERE id = %s", (subject_id,))
         mysql.connection.commit()
         flash('Subject deleted successfully', 'success')
@@ -282,27 +289,34 @@ def request_subject():
     subject_id = request.form['subject_id']
 
     cur = mysql.connection.cursor()
-    # Check if request already exists to avoid duplicates
     cur.execute("""
-        SELECT id FROM student_subject_requests 
+        SELECT id, status FROM student_subject_requests 
         WHERE student_id = %s AND subject_id = %s
     """, (student_id, subject_id))
-    
+
     existing = cur.fetchone()
 
     if not existing:
         cur.execute("""
-            INSERT INTO student_subject_requests (student_id, subject_id) VALUES (%s, %s)
+            INSERT INTO student_subject_requests (student_id, subject_id, status)
+            VALUES (%s, %s, 'pending')
         """, (student_id, subject_id))
         mysql.connection.commit()
+        request_id = cur.lastrowid
+    elif existing[1] == 'rejected':
+        cur.execute("""
+            UPDATE student_subject_requests SET status = 'pending' 
+            WHERE id = %s
+        """, (existing[0],))
+        mysql.connection.commit()
+        request_id = existing[0]
+    else:
+        request_id = existing[0]
 
-    cur.execute("""
-        INSERT INTO student_subject_requests (student_id, subject_id, status)
-        VALUES (%s, %s, 'pending')
-    """, (student_id, subject_id))
-    mysql.connection.commit()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'status': 'pending', 'request_id': request_id})
 
-    return redirect('/student_profile')  # or wherever appropriate
+    return redirect('/student_profile')
 
 @app.route('/subject_requests/<int:subject_id>')
 def subject_requests(subject_id):
@@ -361,13 +375,14 @@ def update_request(request_id, action):
 
     return redirect(f'/subject_requests/{subject_id}')
 
+
+
 @app.route('/student_profile')
 def student_profile():
     if session.get('role') != 'student':
         return redirect('/login')
 
     student_id = session['user']
-
     cur = mysql.connection.cursor(DictCursor)
 
     # Fetch all subjects
@@ -376,7 +391,6 @@ def student_profile():
         FROM subjects s
         JOIN instructors i ON s.instructor_id = i.employee_ID
     """)
-
     subjects = cur.fetchall()
 
     cur.execute("SELECT first_name, middle_name, last_name, course_level, section FROM students WHERE id = %s", (student_id,))
@@ -388,9 +402,17 @@ def student_profile():
         WHERE student_id = %s
     """, (student_id,))
     requests = cur.fetchall()
-    requested_subjects = {r['subject_id']: r['status'] for r in requests}
 
-    return render_template('student_profile.html', subjects=subjects, requested_subjects=requested_subjects, requests=requests, student_info=student_info)
+    # Build a dict: subject_id -> list of statuses
+    requested_subjects = defaultdict(list)
+    for r in requests:
+        requested_subjects[r['subject_id']].append(r['status'])
+
+    return render_template('student_profile.html', 
+                           subjects=subjects, 
+                           requested_subjects=requested_subjects, 
+                           requests=requests, 
+                           student_info=student_info)
 
 
 @app.route('/cancel_request/<int:request_id>', methods=['POST'])

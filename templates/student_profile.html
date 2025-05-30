@@ -137,8 +137,11 @@
               <td>{{ subject.instructor_email }}</td>
               <td>
                 {% if subject.id in requested_subjects %}
-                  {% set status = requested_subjects[subject.id] %}
-                  {% if status == 'pending' %}
+                  {% set statuses = requested_subjects[subject.id] %}
+                  {% if 'accepted' in statuses %}
+                    <span style="color: green; font-weight: bold;">Accepted</span><br>
+                    <small>Instructor: {{ subject.instructor_email }}</small>
+                  {% elif 'pending' in statuses %}
                     Pending
                     {% for req in requests %}
                       {% if req.subject_id == subject.id and req.status == 'pending' %}
@@ -147,10 +150,7 @@
                         </form>
                       {% endif %}
                     {% endfor %}
-                  {% elif status == 'approved' %}
-                    <span style="color: green; font-weight: bold;">Accepted</span><br>
-                    <small>Instructor: {{ subject.instructor_email }}</small>
-                  {% elif status == 'rejected' %}
+                  {% elif 'rejected' in statuses %}
                     <span style="color: red;">Rejected</span>
                     <form method="POST" action="/request_subject">
                       <input type="hidden" name="subject_id" value="{{ subject.id }}">
@@ -164,6 +164,7 @@
                   </form>
                 {% endif %}
               </td>
+
             </tr>
           {% endfor %}
         </tbody>
@@ -198,6 +199,35 @@
         } else {
           row.style.display = 'none';
         }
+      });
+    });
+
+    document.querySelectorAll('.request-again-form').forEach(form => {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const subjectId = this.getAttribute('data-subject-id');
+        const cell = this.closest('td');
+
+        fetch('/request_subject', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: `subject_id=${subjectId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'pending') {
+            cell.innerHTML = `
+              Pending
+              <form method="POST" action="/cancel_request/${data.request_id}" style="display:inline;">
+                <button type="submit" style="background-color: #dc3545;">Cancel</button>
+              </form>
+            `;
+          }
+        });
       });
     });
   </script>
