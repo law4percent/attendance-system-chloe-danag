@@ -142,7 +142,9 @@
                 <td>
                 <a href="/subject/{{ subject.id }}" class="subject-link">
                     {{ subject.subject_code or 'Unnamed Subject' }}
+                    {% if subject.pending_count %}({{ subject.pending_count }}){% endif %}
                 </a>
+
                 </td>
                 <td>{{ subject.section or "No Section" }}</td>
                 <td>{{ subject.enrolled_count or 0 }}</td> <!-- Assuming you pass this from backend -->

@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, flash, url_for
 from flask_mysqldb import MySQL
-from werkzeug.security import generate_password_hash, check_password_hash
 from MySQLdb.cursors import DictCursor
 import config
 from functools import wraps
@@ -48,13 +47,14 @@ def login():
         cur = mysql.connection.cursor(DictCursor)  # Use DictCursor for dictionary results
         cur.execute(f"SELECT * FROM {table} WHERE email = %s", (email,))
         user = cur.fetchone()
-        print(user)  # Optional: for debugging
+        print(f"Password MySQL: {user['password']}")  # Optional: for debugging
+        print(f"Password HTML: {password}")  # Optional: for debugging
 
         if user is None:
             flash("Invalid email or password (user not found)")
             return redirect(f'/login?role={role}')
 
-        if check_password_hash(user['password'], password):
+        if user['password'] == password:
             # ✅ Store the correct identifier in session based on the role
             if role == 'instructor':
                 session['user'] = user['employee_ID']  # Use employee_ID
@@ -80,7 +80,8 @@ def register():
 
     if request.method == 'POST':
         email = request.form['email']
-        password = generate_password_hash(request.form['password'])
+        # password = generate_password_hash(request.form['password'])
+        password = request.form['password']
 
         cur = mysql.connection.cursor()
 
@@ -100,13 +101,19 @@ def register():
             section = request.form['section']
             college_year_level = request.form['year_level']  # map to DB column name
             cor_link = request.form['cor_link']
+            middle_name = request.form['middle_name'].strip() or None
 
             cur.execute("""
-                    INSERT INTO students (first_name, last_name, school_ID, section, college_year_level, email, password, COR_link)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (first_name, last_name, school_id, section, college_year_level, email, password, cor_link)
+                INSERT INTO students (
+                    first_name, middle_name, last_name, school_ID,
+                    section, college_year_level, email, password, COR_link
                 )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                first_name, middle_name, last_name, school_id,
+                section, college_year_level, email, password, cor_link
+            ))
+
             mysql.connection.commit()
             return redirect('/login?role=student')
 
@@ -123,20 +130,39 @@ def instructor_profile():
     instructor_id = session.get('user')
     cur = mysql.connection.cursor(DictCursor)
 
-    # Query to get subjects with enrolled count
-    query = """
-    SELECT s.id, s.subject_code, s.course_level, s.section,
-        COUNT(ss.student_id) AS enrolled_count
-    FROM subjects s
-    LEFT JOIN student_subjects ss ON s.id = ss.subject_id
-    WHERE s.instructor_id = %s
-    GROUP BY s.id, s.subject_code, s.course_level, s.section
-    """
-
-    cur.execute(query, (instructor_id,))
-
+    # Get subjects with enrolled count
+    cur.execute("""
+        SELECT s.id, s.subject_code, s.course_level, s.section,
+            COUNT(ss.student_id) AS enrolled_count
+        FROM subjects s
+        LEFT JOIN student_subjects ss ON s.id = ss.subject_id
+        WHERE s.instructor_id = %s
+        GROUP BY s.id, s.subject_code, s.course_level, s.section
+    """, (instructor_id,))
+    
     subjects = cur.fetchall()
 
+    # 🔥 Get pending counts for each subject in one query
+    subject_ids = [subject['id'] for subject in subjects]
+    format_strings = ','.join(['%s'] * len(subject_ids))
+
+    if subject_ids:
+        cur.execute(f"""
+            SELECT subject_id, COUNT(*) as pending_count
+            FROM student_subject_requests
+            WHERE subject_id IN ({format_strings}) AND status = 'pending'
+            GROUP BY subject_id
+        """, tuple(subject_ids))
+
+        pending_counts = {row['subject_id']: row['pending_count'] for row in cur.fetchall()}
+    else:
+        pending_counts = {}
+
+    # 🔄 Attach pending_count to each subject
+    for subject in subjects:
+        subject['pending_count'] = pending_counts.get(subject['id'], 0)
+
+    # Group by course level
     grouped_subjects = {}
     for subject in subjects:
         level = subject['course_level']
@@ -210,11 +236,20 @@ def subject_students(subject_id):
         WHERE ss.subject_id = %s
         ORDER BY s.last_name ASC
     """, (subject_id,))
-
     students = cur.fetchall()
+# 🔥 Get pending request count for this subject
+    cur.execute("""
+        SELECT COUNT(*) 
+        FROM student_subject_requests 
+        WHERE subject_id = %s AND status = 'pending'
+    """, (subject_id,))
+    pending_count = cur.fetchone()[0]
 
-    return render_template('subject_students.html', subject=subject, students=students, subject_id=subject_id)
-
+    return render_template('subject_students.html',
+                           subject=subject,
+                           students=students,
+                           subject_id=subject_id,
+                           pending_count=pending_count)
 
 @app.route('/unenroll_student/<int:subject_id>/<int:student_id>')
 def unenroll_student(subject_id, student_id):
@@ -330,7 +365,7 @@ def student_profile():
 
     subjects = cur.fetchall()
 
-    cur.execute("SELECT first_name, middle_name, last_name FROM students WHERE id = %s", (student_id,))
+    cur.execute("SELECT first_name, middle_name, last_name, course_level, section FROM students WHERE id = %s", (student_id,))
     student_info = cur.fetchone()
 
     # Fetch subject requests made by this student (including request id)
@@ -378,7 +413,7 @@ def edit_student_profile():
         last_name = request.form['last_name']
         school_id = request.form['school_id']
         section = request.form['section']
-        college_year_level = request.form['year_level']
+        course_level = request.form['course_level']
         cor_link = request.form['cor_link']
 
         # Update student info
@@ -389,17 +424,17 @@ def edit_student_profile():
                 last_name = %s,
                 school_ID = %s,
                 section = %s,
-                college_year_level = %s,
+                course_level = %s,
                 COR_link = %s
             WHERE id = %s
-        """, (first_name, middle_name, last_name, school_id, section, college_year_level, cor_link, student_id))
+        """, (first_name, middle_name, last_name, school_id, section, course_level, cor_link, student_id))
         mysql.connection.commit()
 
         flash("Profile updated successfully!")
         return redirect('/student_profile')
 
     # GET method - fetch current student info
-    cur.execute("SELECT first_name, middle_name, last_name, school_ID, section, college_year_level, COR_link, email FROM students WHERE id = %s", (student_id,))
+    cur.execute("SELECT first_name, middle_name, last_name, school_ID, section, course_level, COR_link, email FROM students WHERE id = %s", (student_id,))
     student = cur.fetchone()
 
     return render_template('edit_student_profile.html', student=student)

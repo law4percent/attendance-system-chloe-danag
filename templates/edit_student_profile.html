@@ -107,8 +107,15 @@
       <label>Section*:</label>
       <input type="text" name="section" value="{{ student.section }}" required>
 
-      <label>Year Level*:</label>
-      <input type="text" name="year_level" value="{{ student.college_year_level }}" required>
+      <label for="course_level">Course Level*:</label>
+      <select id="course_level" name="course_level">
+        <option value="1" {% if student.course_level == '1' %}selected{% endif %}>1st Year</option>
+        <option value="2" {% if student.course_level == '2' %}selected{% endif %}>2nd Year</option>
+        <option value="3" {% if student.course_level == '3' %}selected{% endif %}>3rd Year</option>
+        <option value="4" {% if student.course_level == '4' %}selected{% endif %}>4th Year</option>
+        <option value="5" {% if student.course_level == '5' %}selected{% endif %}>5th Year</option>
+        <option value="6" {% if student.course_level == '6' %}selected{% endif %}>6th Year</option>
+      </select>
 
       <label>COR Link*:</label>
       <input type="text" name="cor_link" value="{{ student.COR_link }}" required>
