@@ -7,27 +7,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+  <div class="container">
     <h2>Edit Profile</h2>
 
-    <form method="POST" action="/edit_student_profile">
-      <label>First Name*:</label>
-      <input type="text" name="first_name" value="{{ student.first_name }}" required>
+    <form method="POST" action="/edit_student_profile" novalidate>
+      <label for="first_name">First Name*:</label>
+      <input type="text" id="first_name" name="first_name" value="{{ student.first_name }}" required>
 
-      <label>Middle Name:</label>
-      <input type="text" name="middle_name" value="{{ student.middle_name }}">
+      <label for="middle_name">Middle Name:</label>
+      <input type="text" id="middle_name" name="middle_name" value="{{ student.middle_name }}">
 
-      <label>Last Name*:</label>
-      <input type="text" name="last_name" value="{{ student.last_name }}" required>
+      <label for="last_name">Last Name*:</label>
+      <input type="text" id="last_name" name="last_name" value="{{ student.last_name }}" required>
 
-      <label>School ID*:</label>
-      <input type="text" name="school_id" value="{{ student.school_ID }}" required>
+      <label for="school_id">School ID*:</label>
+      <input type="text" id="school_id" name="school_id" value="{{ student.school_ID }}" required>
 
-      <label>Section*:</label>
-      <input type="text" name="section" value="{{ student.section }}" required>
+      <label for="section">Section*:</label>
+      <input type="text" id="section" name="section" value="{{ student.section }}" required>
 
       <label for="course_level">Course Level*:</label>
-      <select id="course_level" name="course_level">
+      <select id="course_level" name="course_level" required>
         <option value="1" {% if student.course_level == '1' %}selected{% endif %}>1st Year</option>
         <option value="2" {% if student.course_level == '2' %}selected{% endif %}>2nd Year</option>
         <option value="3" {% if student.course_level == '3' %}selected{% endif %}>3rd Year</option>
@@ -36,18 +36,18 @@
         <option value="6" {% if student.course_level == '6' %}selected{% endif %}>6th Year</option>
       </select>
 
-      <label>COR Link*:</label>
-      <input type="text" name="cor_link" value="{{ student.COR_link }}" required>
+      <label for="cor_link">COR Link*:</label>
+      <input type="text" id="cor_link" name="cor_link" value="{{ student.COR_link }}" required>
 
-      <label>Email (username)*:</label>
-      <input type="email" value="{{ student.email }}" disabled>
+      <label for="email">Email (username)*:</label>
+      <input type="email" id="email" value="{{ student.email }}" disabled aria-disabled="true">
 
       <button type="submit">Save Changes</button>
     </form>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
-        <div class="message">
+        <div class="message" role="alert" aria-live="polite">
           {% for message in messages %}
             <p>{{ message }}</p>
           {% endfor %}

@@ -74,9 +74,6 @@ def login():
     return render_template('auth/login.html', role=role)
 
 
-
-
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     role = request.args.get('role', 'instructor')
@@ -123,8 +120,6 @@ def register():
             return redirect('/login?role=student')
 
     return render_template('auth/register.html', role=role)
-
-
 
 @app.route('/instructor_profile')
 def instructor_profile():
@@ -181,8 +176,6 @@ def instructor_profile():
         subject_count=subject_count
     )
 
-from MySQLdb.cursors import DictCursor
-
 @app.route('/edit_instructor_profile', methods=['GET', 'POST'])
 @role_required('instructor')
 def edit_instructor_profile():
@@ -203,12 +196,9 @@ def edit_instructor_profile():
         flash("Profile updated successfully!")
         return redirect('/instructor_profile')
 
-    # GET: fetch current instructor info
     cur.execute("SELECT email, registered_fingerprint_ID FROM instructors WHERE employee_id = %s", (employee_id,))
     instructor = cur.fetchone()
-
     return render_template('instructor/edit_profile.html', instructor=instructor)
-
 
 @app.route('/logout')
 def logout():
@@ -241,8 +231,6 @@ def delete_subject(subject_id):
 
     return redirect('/instructor_profile')
 
-
-
 @app.route('/add_subject', methods=['POST'])
 def add_subject():
     if session.get('role') != 'instructor':
@@ -261,7 +249,6 @@ def add_subject():
     mysql.connection.commit()
     flash('Subject added successfully!')
     return redirect('/instructor_profile')
-
 
 @app.route('/subject/<int:subject_id>')
 def subject_students(subject_id):
@@ -411,8 +398,6 @@ def update_request(request_id, action):
 
     return redirect(f'/subject_requests/{subject_id}')
 
-
-
 @app.route('/student_profile')
 def student_profile():
     if session.get('role') != 'student':
@@ -450,7 +435,6 @@ def student_profile():
                             requests=requests, 
                             student_info=student_info)
 
-
 @app.route('/cancel_request/<int:request_id>', methods=['POST'])
 @role_required('student')
 def cancel_request(request_id):
@@ -464,7 +448,6 @@ def cancel_request(request_id):
     mysql.connection.commit()
     flash("Request cancelled.")
     return redirect('/student_profile')
-
 
 @app.route('/edit_student_profile', methods=['GET', 'POST'])
 @role_required('student')
@@ -503,7 +486,6 @@ def edit_student_profile():
     student = cur.fetchone()
 
     return render_template('student/edit_profile.html', student=student)
-
 
 if __name__ == '__main__':
     app.run(debug=True)
