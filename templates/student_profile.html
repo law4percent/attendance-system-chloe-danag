@@ -137,7 +137,8 @@
               <td>{{ subject.instructor_email }}</td>
               <td>
                 {% if subject.id in requested_subjects %}
-                  {% if requested_subjects[subject.id] == 'pending' %}
+                  {% set status = requested_subjects[subject.id] %}
+                  {% if status == 'pending' %}
                     Pending
                     {% for req in requests %}
                       {% if req.subject_id == subject.id and req.status == 'pending' %}
@@ -146,8 +147,43 @@
                         </form>
                       {% endif %}
                     {% endfor %}
-                  {% else %}
-                    {{ requested_subjects[subject.id] | capitalize }}
+                  {% elif status == 'approved' %}
+                    Approved
+                  {% elif status == 'rejected' %}
+                    Rejected
+                    <form method="POST" action="/request_subject">
+                      <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                      <button type="submit">Request Again</button>
+                    </form>
+                  {% endif %}
+
+                {% else %}
+                  <form method="POST" action="/request_subject">
+                    <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                    <button type="submit">Request Enrollment</button>
+                  </form>
+                {% endif %}
+              <td>
+                {% if subject.id in requested_subjects %}
+                  {% set status = requested_subjects[subject.id] %}
+                  {% if status == 'pending' %}
+                    Pending
+                    {% for req in requests %}
+                      {% if req.subject_id == subject.id and req.status == 'pending' %}
+                        <form method="POST" action="/cancel_request/{{ req.id }}" style="display:inline;">
+                          <button type="submit" style="background-color: #dc3545;">Cancel</button>
+                        </form>
+                      {% endif %}
+                    {% endfor %}
+                  {% elif status == 'approved' %}
+                    <span style="color: green; font-weight: bold;">Accepted</span><br>
+                    <small>Instructor: {{ subject.instructor_email }}</small>
+                  {% elif status == 'rejected' %}
+                    <span style="color: red;">Rejected</span>
+                    <form method="POST" action="/request_subject">
+                      <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                      <button type="submit">Request Again</button>
+                    </form>
                   {% endif %}
                 {% else %}
                   <form method="POST" action="/request_subject">
@@ -156,6 +192,7 @@
                   </form>
                 {% endif %}
               </td>
+
             </tr>
           {% endfor %}
         </tbody>

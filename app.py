@@ -47,21 +47,23 @@ def login():
         cur = mysql.connection.cursor(DictCursor)  # Use DictCursor for dictionary results
         cur.execute(f"SELECT * FROM {table} WHERE email = %s", (email,))
         user = cur.fetchone()
-        print(f"Password MySQL: {user['password']}")  # Optional: for debugging
-        print(f"Password HTML: {password}")  # Optional: for debugging
+
+        print(f"Password MySQL: {user['password'] if user else None}")  # Optional debugging
+        print(f"Password HTML: {password}")  # Optional debugging
 
         if user is None:
             flash("Invalid email or password (user not found)")
             return redirect(f'/login?role={role}')
 
-        if user['password'] == password:
-            # ✅ Store the correct identifier in session based on the role
+        if user['password'] == password:# : or True:  # Replace 'or True' with actual password check in prod
+            # Store identifiers and email in session
             if role == 'instructor':
-                session['user'] = user['employee_ID']  # Use employee_ID
+                session['user'] = user['employee_ID']  # Use employee_ID for instructors
             else:
                 session['user'] = user['id']  # Use id for students
 
             session['role'] = role
+            session['email'] = user['email']  # Store email for greeting
 
             return redirect('/instructor_profile' if role == 'instructor' else '/student_profile')
         else:
@@ -128,9 +130,13 @@ def instructor_profile():
         return redirect('/login')
 
     instructor_id = session.get('user')
+    instructor_email = session.get('email') 
+
+    print(f"✅instructor_email: {instructor_email}")
+
     cur = mysql.connection.cursor(DictCursor)
 
-    # Get subjects with enrolled count
+    # Get subjects and count
     cur.execute("""
         SELECT s.id, s.subject_code, s.course_level, s.section,
             COUNT(ss.student_id) AS enrolled_count
@@ -141,24 +147,22 @@ def instructor_profile():
     """, (instructor_id,))
     
     subjects = cur.fetchall()
+    subject_count = len(subjects)
 
-    # 🔥 Get pending counts for each subject in one query
+    # Get pending request counts per subject
     subject_ids = [subject['id'] for subject in subjects]
-    format_strings = ','.join(['%s'] * len(subject_ids))
-
     if subject_ids:
+        format_strings = ','.join(['%s'] * len(subject_ids))
         cur.execute(f"""
             SELECT subject_id, COUNT(*) as pending_count
             FROM student_subject_requests
             WHERE subject_id IN ({format_strings}) AND status = 'pending'
             GROUP BY subject_id
         """, tuple(subject_ids))
-
         pending_counts = {row['subject_id']: row['pending_count'] for row in cur.fetchall()}
     else:
         pending_counts = {}
 
-    # 🔄 Attach pending_count to each subject
     for subject in subjects:
         subject['pending_count'] = pending_counts.get(subject['id'], 0)
 
@@ -171,9 +175,14 @@ def instructor_profile():
     return render_template(
         'instructor_profile.html',
         grouped_subjects=grouped_subjects,
-        instructor=session.get('email')
+        instructor_email=instructor_email,
+        subject_count=subject_count
     )
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
 
 @app.route('/delete_subject/<int:subject_id>')
 def delete_subject(subject_id):
@@ -264,8 +273,6 @@ def unenroll_student(subject_id, student_id):
     flash('Student has been unenrolled successfully.', 'success')
     return redirect(url_for('subject_students', subject_id=subject_id))
 
-
-
 @app.route('/request_subject', methods=['POST'])
 def request_subject():
     if session.get('role') != 'student':
@@ -280,6 +287,7 @@ def request_subject():
         SELECT id FROM student_subject_requests 
         WHERE student_id = %s AND subject_id = %s
     """, (student_id, subject_id))
+    
     existing = cur.fetchone()
 
     if not existing:
@@ -287,6 +295,12 @@ def request_subject():
             INSERT INTO student_subject_requests (student_id, subject_id) VALUES (%s, %s)
         """, (student_id, subject_id))
         mysql.connection.commit()
+
+    cur.execute("""
+        INSERT INTO student_subject_requests (student_id, subject_id, status)
+        VALUES (%s, %s, 'pending')
+    """, (student_id, subject_id))
+    mysql.connection.commit()
 
     return redirect('/student_profile')  # or wherever appropriate
 
@@ -377,13 +391,6 @@ def student_profile():
     requested_subjects = {r['subject_id']: r['status'] for r in requests}
 
     return render_template('student_profile.html', subjects=subjects, requested_subjects=requested_subjects, requests=requests, student_info=student_info)
-
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/login')
-
 
 
 @app.route('/cancel_request/<int:request_id>', methods=['POST'])
