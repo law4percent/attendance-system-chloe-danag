@@ -40,6 +40,24 @@ a:hover {
     overflow-x: auto;
 }
 
+/* Search Inputs Styling */
+#subjectFilter,
+#instructorFilter,
+#sectionFilter {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+/* Spacing between filter inputs */
+#instructorFilter {
+    margin-top: 10px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -87,13 +105,5 @@ button:hover {
 
 .logout a {
     color: #dc3545;
-}
-
-#searchInput {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 16px;
+    font-weight: bold;
 }

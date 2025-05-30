@@ -6,6 +6,7 @@ body {
     padding: 40px 20px;
     margin: 0;
 }
+
 .container {
     background: white;
     padding: 30px 35px;
@@ -14,11 +15,13 @@ body {
     width: 800px;
     box-sizing: border-box;
 }
+
 h2 {
     color: #007bff;
     margin-bottom: 25px;
     text-align: center;
 }
+
 h3 {
     margin-top: 30px;
     margin-bottom: 15px;
@@ -27,24 +30,39 @@ h3 {
     padding-bottom: 5px;
     font-weight: 600;
 }
+
 h4 {
     margin-top: 20px;
     color: #555;
 }
-form input[type="text"] {
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+form input[type="text"],
+form select {
     width: 100%;
     padding: 10px 12px;
-    margin-bottom: 18px;
     border: 1.5px solid #ccc;
     border-radius: 5px;
     font-size: 1rem;
     transition: border-color 0.3s ease;
     box-sizing: border-box;
 }
-form input[type="text"]:focus {
+
+form input[type="text"]:focus,
+form select:focus {
     border-color: #007bff;
     outline: none;
 }
+
+form select {
+    appearance: none;
+    background-color: #fff;
+    cursor: pointer;
+}
+
 button {
     width: 100%;
     background-color: #007bff;
@@ -56,48 +74,60 @@ button {
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
+
 button:hover {
     background-color: #0056b3;
 }
+
 table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
 }
+
 table, th, td {
     border: 1px solid #ddd;
 }
+
 th, td {
     padding: 10px;
     text-align: left;
 }
+
 th {
     background-color: #f8f9fa;
 }
+
 a {
     text-decoration: none;
     font-weight: 600;
 }
+
 a.edit-link {
     color: green;
 }
+
 a.delete-link {
     color: red;
 }
+
 a.subject-link {
     color: #007bff;
 }
+
 .logout-link {
     display: block;
     margin-top: 35px;
     text-align: center;
     font-size: 1rem;
 }
+
 .logout-link a {
     color: #dc3545;
     text-decoration: none;
     font-weight: 600;
 }
+
 .logout-link a:hover {
     text-decoration: underline;
 }

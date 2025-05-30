@@ -16,7 +16,10 @@
 
     <h3>Subjects Available</h3>
 
-    <input type="text" id="searchInput" placeholder="Search by Subject Code...">
+    <!-- Enhanced Search Filters -->
+    <input type="text" id="subjectFilter" placeholder="Filter by Subject Code..." />
+    <input type="text" id="instructorFilter" placeholder="Filter by Instructor Email..." />
+    <input type="text" id="sectionFilter" placeholder="Filter by Section..." />
 
     <div class="table-wrapper">
       <table id="subjectsTable">
@@ -65,11 +68,9 @@
                   </form>
                 {% endif %}
               </td>
-
             </tr>
           {% endfor %}
         </tbody>
-
       </table>
     </div>
 
@@ -88,48 +89,34 @@
     </div>
   </div>
 
+  <!-- Filtering Script -->
   <script>
-    document.getElementById('searchInput').addEventListener('keyup', function () {
-      const filter = this.value.toUpperCase();
+    function filterSubjects() {
+      const subjectFilter = document.getElementById('subjectFilter').value.toUpperCase();
+      const instructorFilter = document.getElementById('instructorFilter').value.toUpperCase();
+      const sectionFilter = document.getElementById('sectionFilter').value.toUpperCase();
       const rows = document.querySelectorAll('#subjectsTable tbody tr');
 
       rows.forEach(row => {
         const subjectCode = row.cells[0].textContent.toUpperCase();
-        if (subjectCode.indexOf(filter) > -1) {
+        const courseLevel = row.cells[1].textContent.toUpperCase(); // Unused but available
+        const section = row.cells[2].textContent.toUpperCase();
+        const instructorEmail = row.cells[3].textContent.toUpperCase();
+
+        const matchesSubject = subjectCode.includes(subjectFilter);
+        const matchesInstructor = instructorEmail.includes(instructorFilter);
+        const matchesSection = section.includes(sectionFilter);
+
+        if (matchesSubject && matchesInstructor && matchesSection) {
           row.style.display = '';
         } else {
           row.style.display = 'none';
         }
       });
-    });
+    }
 
-    document.querySelectorAll('.request-again-form').forEach(form => {
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const subjectId = this.getAttribute('data-subject-id');
-        const cell = this.closest('td');
-
-        fetch('/request_subject', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: `subject_id=${subjectId}`
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'pending') {
-            cell.innerHTML = `
-              Pending
-              <form method="POST" action="/cancel_request/${data.request_id}" style="display:inline;">
-                <button type="submit" style="background-color: #dc3545;">Cancel</button>
-              </form>
-            `;
-          }
-        });
-      });
-    });
+    document.getElementById('subjectFilter').addEventListener('keyup', filterSubjects);
+    document.getElementById('instructorFilter').addEventListener('keyup', filterSubjects);
+    document.getElementById('sectionFilter').addEventListener('keyup', filterSubjects);
   </script>
 {% endblock content %}
