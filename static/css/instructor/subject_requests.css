@@ -1,0 +1,80 @@
+body {
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+background: #f9fafb;
+padding: 30px 20px;
+display: flex;
+justify-content: center;
+margin: 0;
+}
+.container {
+background: white;
+width: 850px;
+padding: 30px 35px;
+border-radius: 8px;
+box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+box-sizing: border-box;
+}
+h2 {
+color: #007bff;
+margin-bottom: 25px;
+border-bottom: 2px solid #007bff;
+padding-bottom: 8px;
+font-weight: 600;
+text-align: center;
+}
+table {
+width: 100%;
+border-collapse: collapse;
+margin-bottom: 25px;
+}
+th, td {
+border: 1px solid #ddd;
+padding: 12px 15px;
+text-align: center;
+}
+th {
+background-color: #007bff;
+color: white;
+font-weight: 600;
+}
+tr:nth-child(even) {
+background-color: #f8f9fa;
+}
+tr:hover {
+background-color: #e6f0ff;
+}
+a.action-link {
+color: white;
+text-decoration: none;
+padding: 6px 14px;
+border-radius: 5px;
+font-weight: 600;
+margin: 0 5px;
+transition: background-color 0.3s ease;
+font-size: 0.9rem;
+}
+a.accept {
+background-color: #28a745;
+}
+a.accept:hover {
+background-color: #1e7e34;
+}
+a.reject {
+background-color: #dc3545;
+}
+a.reject:hover {
+background-color: #b02a37;
+}
+a.back-link {
+display: inline-block;
+text-decoration: none;
+color: #007bff;
+font-weight: 600;
+font-size: 1rem;
+margin-top: 10px;
+border-bottom: 1px solid transparent;
+transition: border-color 0.3s ease;
+}
+a.back-link:hover {
+border-color: #007bff;
+}

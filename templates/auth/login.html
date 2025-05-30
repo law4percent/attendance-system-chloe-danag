@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock title %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth/login.css') }}">
+{% endblock %}
+
+{% block content %}
+<body class="login-page">
+<div class="card">
+    <h2>Login as {{ role.capitalize() }}</h2>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="error">
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="role-selection">
+        <button class="role-btn {% if role == 'instructor' %}active{% endif %}" onclick="onRoleChange('instructor')">Instructor</button>
+        <button class="role-btn {% if role == 'student' %}active{% endif %}" onclick="onRoleChange('student')">Student</button>
+    </div>
+
+    <form method="POST" action="/login?role={{ role }}">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+
+        <button type="submit">Login</button>
+    </form>
+
+    <div class="register-link">
+        <p>Don't have an account? <a href="/register?role={{ role }}">Register as {{ role }}</a></p>
+    </div>
+</div>
+
+<script>
+    function onRoleChange(role) {
+        const currentPath = window.location.pathname;
+        const queryParams = new URLSearchParams(window.location.search);
+        queryParams.set('role', role);
+        window.location.href = `${currentPath}?${queryParams.toString()}`;
+    }
+</script>
+</body>
+{% endblock %}

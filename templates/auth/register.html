@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Registration{% endblock title %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth/register.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2>Register</h2>
+
+  <!-- Toggle Buttons -->
+  <div class="role-toggle">
+    <button class="role-button" id="instructor-btn">Instructor</button>
+    <button class="role-button" id="student-btn">Student</button>
+  </div>
+
+  <!-- Registration Form -->
+  <form id="register-form" method="POST" enctype="multipart/form-data" style="display:none;">
+    <input type="hidden" id="role-input" name="role" value="" />
+
+    <label for="email">Email*:</label>
+    <input type="email" id="email" name="email" required />
+
+    <label for="password">Password*:</label>
+    <input type="password" id="password" name="password" required />
+
+    <!-- Add fingerprint input here -->
+    <label for="registered_fingerprint_ID">Fingerprint ID (Optional):</label>
+    <input type="text" id="registered_fingerprint_ID" name="registered_fingerprint_ID" placeholder="Enter Fingerprint ID or leave blank" />
+
+    <!-- Instructor Fields -->
+    <div id="instructor-fields" style="display:none;">
+      <label for="employee_id">Employee ID*:</label>
+      <input type="text" id="employee_id" name="employee_id" />
+    </div>
+
+    <!-- Student Fields -->
+    <div id="student-fields" style="display:none;">
+      <label for="first_name">First Name*:</label>
+      <input type="text" id="first_name" name="first_name" />
+
+      <label for="middle_name">Middle Name:</label>
+      <input type="text" id="middle_name" name="middle_name" />
+
+      <label for="last_name">Last Name*:</label>
+      <input type="text" id="last_name" name="last_name" />
+
+      <label for="school_id">School ID*:</label>
+      <input type="text" id="school_id" name="school_id" />
+
+      <label for="section">Section*:</label>
+      <input type="text" id="section" name="section" />
+
+      <label for="course_level">Year Level*:</label>
+      <select id="course_level" name="course_level">
+        <option value="">Select Year Level</option>
+        <option value="1">1st Year</option>
+        <option value="2">2nd Year</option>
+        <option value="3">3rd Year</option>
+        <option value="4">4th Year</option>
+        <option value="5">5th Year</option>
+        <option value="6">6th Year</option>
+      </select>
+
+      <label for="cor_link">COR PDF Link (Google Drive)*:</label>
+      <input type="url" id="cor_link" name="cor_link" placeholder="Paste Google Drive link here" />
+    </div>
+
+    <button type="submit">Register</button>
+  </form>
+
+  <div class="toggle-links">
+    <a href="/login">Already have an account? Login here</a>
+  </div>
+</div>
+
+<script>
+  const instructorBtn = document.getElementById('instructor-btn');
+  const studentBtn = document.getElementById('student-btn');
+  const registerForm = document.getElementById('register-form');
+  const instructorFields = document.getElementById('instructor-fields');
+  const studentFields = document.getElementById('student-fields');
+  const roleInput = document.getElementById('role-input');
+
+  function resetButtons() {
+    instructorBtn.classList.remove('active');
+    studentBtn.classList.remove('active');
+  }
+
+  function updateURL(role) {
+      const url = new URL(window.location);
+      url.searchParams.set('role', role);
+      window.history.pushState({}, '', url);
+  }
+
+  instructorBtn.addEventListener('click', () => {
+      resetButtons();
+      instructorBtn.classList.add('active');
+      registerForm.style.display = 'block';
+      instructorFields.style.display = 'block';
+      studentFields.style.display = 'none';
+      roleInput.value = 'instructor';
+      updateURL('instructor');
+
+      // Set required fields
+      document.getElementById('employee_id').required = true;
+      ['first_name','middle_name','last_name','school_id','section','course_level','cor_link'].forEach(id => {
+          document.getElementById(id).required = false;
+      });
+  });
+
+  studentBtn.addEventListener('click', () => {
+  resetButtons();
+  studentBtn.classList.add('active');
+  registerForm.style.display = 'block';
+  instructorFields.style.display = 'none';
+  studentFields.style.display = 'block';
+  roleInput.value = 'student';
+  updateURL('student');
+
+  // Set required fields
+  document.getElementById('employee_id').required = false;
+
+  // Required student fields (excluding middle_name)
+  ['first_name','last_name','school_id','section','course_level','cor_link'].forEach(id => {
+      document.getElementById(id).required = true;
+  });
+
+  // Make middle_name optional
+      document.getElementById('middle_name').required = false;
+  });
+
+  // On page load, check the role from the URL and trigger the correct button
+  window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const role = urlParams.get('role');
+
+    if (role === 'instructor') {
+      instructorBtn.click();
+    } else if (role === 'student') {
+      studentBtn.click();
+    }
+  });
+
+</script>
+{% endblock %}

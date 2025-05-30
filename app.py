@@ -71,7 +71,7 @@ def login():
             flash("Invalid email or password (incorrect password)")
             return redirect(f'/login?role={role}')
 
-    return render_template('login.html', role=role)
+    return render_template('auth/login.html', role=role)
 
 
 
@@ -83,17 +83,17 @@ def register():
 
     if request.method == 'POST':
         email = request.form['email']
-        # password = generate_password_hash(request.form['password'])
         password = request.form['password']
+        fingerprint_id = request.form.get('registered_fingerprint_ID') or None
 
         cur = mysql.connection.cursor()
 
         if role == 'instructor':
             employee_id = request.form['employee_id']
             cur.execute("""
-                INSERT INTO instructors (employee_id, email, password)
-                VALUES (%s, %s, %s)
-            """, (employee_id, email, password))
+                INSERT INTO instructors (employee_id, email, password, registered_fingerprint_ID)
+                VALUES (%s, %s, %s, %s)
+            """, (employee_id, email, password, fingerprint_id))
             mysql.connection.commit()
             return redirect('/login?role=instructor')
 
@@ -102,26 +102,27 @@ def register():
             last_name = request.form['last_name']
             school_id = request.form['school_id']
             section = request.form['section']
-            course_level = request.form['course_level']  # map to DB column name
+            course_level = request.form['course_level']
             cor_link = request.form['cor_link']
             middle_name = request.form['middle_name'].strip() or None
 
             cur.execute("""
                 INSERT INTO students (
                     first_name, middle_name, last_name, school_ID,
-                    section, course_level, email, password, COR_link
+                    section, course_level, email, password, COR_link,
+                    registered_fingerprint_ID
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 first_name, middle_name, last_name, school_id,
-                section, course_level, email, password, cor_link
+                section, course_level, email, password, cor_link,
+                fingerprint_id
             ))
 
             mysql.connection.commit()
             return redirect('/login?role=student')
 
-    return render_template('register.html', role=role)
-
+    return render_template('auth/register.html', role=role)
 
 
 
@@ -174,11 +175,40 @@ def instructor_profile():
         grouped_subjects.setdefault(level, []).append(subject)
 
     return render_template(
-        'instructor_profile.html',
+        'instructor/profile.html',
         grouped_subjects=grouped_subjects,
         instructor_email=instructor_email,
         subject_count=subject_count
     )
+
+from MySQLdb.cursors import DictCursor
+
+@app.route('/edit_instructor_profile', methods=['GET', 'POST'])
+@role_required('instructor')
+def edit_instructor_profile():
+    employee_id = session['user']  # make sure this matches your session key
+    cur = mysql.connection.cursor(DictCursor)  # Use DictCursor for dict results
+
+    if request.method == 'POST':
+        fingerprint_id = request.form.get('registered_fingerprint_ID') or None
+
+        # Update only the fingerprint ID; email is NOT changed here
+        cur.execute("""
+            UPDATE instructors
+            SET registered_fingerprint_ID = %s
+            WHERE employee_id = %s
+        """, (fingerprint_id, employee_id))
+        mysql.connection.commit()
+
+        flash("Profile updated successfully!")
+        return redirect('/instructor_profile')
+
+    # GET: fetch current instructor info
+    cur.execute("SELECT email, registered_fingerprint_ID FROM instructors WHERE employee_id = %s", (employee_id,))
+    instructor = cur.fetchone()
+
+    return render_template('instructor/edit_profile.html', instructor=instructor)
+
 
 @app.route('/logout')
 def logout():
@@ -261,7 +291,7 @@ def subject_students(subject_id):
     """, (subject_id,))
     pending_count = cur.fetchone()[0]
 
-    return render_template('subject_students.html',
+    return render_template('instructor/subject_students.html',
                            subject=subject,
                            students=students,
                            subject_id=subject_id,
@@ -347,7 +377,7 @@ def subject_requests(subject_id):
         return "Subject not found", 404
 
 
-    return render_template('subject_requests.html', requests=requests, subject=subject, subject_id=subject_id)
+    return render_template('instructor/subject_requests.html', requests=requests, subject=subject, subject_id=subject_id)
 
 @app.route('/update_request/<int:request_id>/<action>')
 def update_request(request_id, action):
@@ -414,11 +444,11 @@ def student_profile():
     for r in requests:
         requested_subjects[r['subject_id']].append(r['status'])
 
-    return render_template('student_profile.html', 
-                           subjects=subjects, 
-                           requested_subjects=requested_subjects, 
-                           requests=requests, 
-                           student_info=student_info)
+    return render_template('student/profile.html', 
+                            subjects=subjects, 
+                            requested_subjects=requested_subjects, 
+                            requests=requests, 
+                            student_info=student_info)
 
 
 @app.route('/cancel_request/<int:request_id>', methods=['POST'])
@@ -472,7 +502,7 @@ def edit_student_profile():
     cur.execute("SELECT first_name, middle_name, last_name, school_ID, section, course_level, COR_link, email FROM students WHERE id = %s", (student_id,))
     student = cur.fetchone()
 
-    return render_template('edit_student_profile.html', student=student)
+    return render_template('student/edit_profile.html', student=student)
 
 
 if __name__ == '__main__':
