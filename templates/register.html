@@ -150,8 +150,8 @@
         <label for="section">Section*:</label>
         <input type="text" id="section" name="section" />
 
-        <label for="year_level">Year Level*:</label>
-        <select id="year_level" name="year_level">
+        <label for="course_level">Year Level*:</label>
+        <select id="course_level" name="course_level">
           <option value="">Select Year Level</option>
           <option value="1">1st Year</option>
           <option value="2">2nd Year</option>
@@ -203,7 +203,7 @@
 
         // Set required fields
         document.getElementById('employee_id').required = true;
-        ['first_name','middle_name','last_name','school_id','section','year_level','cor_link'].forEach(id => {
+        ['first_name','middle_name','last_name','school_id','section','course_level','cor_link'].forEach(id => {
             document.getElementById(id).required = false;
         });
     });
@@ -221,12 +221,24 @@
     document.getElementById('employee_id').required = false;
 
     // Required student fields (excluding middle_name)
-    ['first_name','last_name','school_id','section','year_level','cor_link'].forEach(id => {
+    ['first_name','last_name','school_id','section','course_level','cor_link'].forEach(id => {
         document.getElementById(id).required = true;
     });
 
     // Make middle_name optional
         document.getElementById('middle_name').required = false;
+    });
+
+    // On page load, check the role from the URL and trigger the correct button
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const role = urlParams.get('role');
+
+      if (role === 'instructor') {
+        instructorBtn.click();
+      } else if (role === 'student') {
+        studentBtn.click();
+      }
     });
 
   </script>

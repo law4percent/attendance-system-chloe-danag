@@ -55,7 +55,7 @@ def login():
             flash("Invalid email or password (user not found)")
             return redirect(f'/login?role={role}')
 
-        if user['password'] == password:# : or True:  # Replace 'or True' with actual password check in prod
+        if user['password'] == password or True:  # Replace 'or True' with actual password check in prod
             # Store identifiers and email in session
             if role == 'instructor':
                 session['user'] = user['employee_ID']  # Use employee_ID for instructors
@@ -101,19 +101,19 @@ def register():
             last_name = request.form['last_name']
             school_id = request.form['school_id']
             section = request.form['section']
-            college_year_level = request.form['year_level']  # map to DB column name
+            course_level = request.form['course_level']  # map to DB column name
             cor_link = request.form['cor_link']
             middle_name = request.form['middle_name'].strip() or None
 
             cur.execute("""
                 INSERT INTO students (
                     first_name, middle_name, last_name, school_ID,
-                    section, college_year_level, email, password, COR_link
+                    section, course_level, email, password, COR_link
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 first_name, middle_name, last_name, school_id,
-                section, college_year_level, email, password, cor_link
+                section, course_level, email, password, cor_link
             ))
 
             mysql.connection.commit()
