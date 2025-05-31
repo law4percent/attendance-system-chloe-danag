@@ -45,10 +45,10 @@ def get_student_time_in(student_id, subject_id):
     return result[0] if result else None
 
 @app.route('/')
-@role_required('instructor')  # Assuming you only want instructors here
-def attendance_page():
-    instructor_id = session['user'] #
-    instructor_email = session.get('email') 
+@role_required('instructor')
+def subject_for_attendance():
+    instructor_id = session['user']
+    instructor_email = session.get('email')
 
     cur = mysql.connection.cursor(DictCursor)
 
@@ -78,11 +78,14 @@ def attendance_page():
 
     subjects = cur.fetchall()
 
-    # Convert time values to readable format
+    now = datetime.now().time()
+
     for subject in subjects:
+        # Convert to strings for display
         subject['start_time'] = timedelta_to_str(subject['class_start_time'])
         subject['end_time'] = timedelta_to_str(subject['class_end_time'])
 
+        # Calculate readable duration
         duration = subject.get('class_duration_time')
         if duration is not None:
             hours = int(duration)
@@ -90,6 +93,11 @@ def attendance_page():
             subject['duration_time'] = f"{hours}:{minutes:02d}"
         else:
             subject['duration_time'] = 'N/A'
+
+        # Check if now is between class_start_time and class_end_time
+        start = (datetime.min + subject['class_start_time']).time()
+        end = (datetime.min + subject['class_end_time']).time()
+        subject['is_active_now'] = start <= now <= end
 
     return render_template('instructor/subject_list_for_attendance.html', subjects=subjects, instructor_email=instructor_email)
 
@@ -105,11 +113,11 @@ def student_attendance(subject_id):
 
     # Get enrolled students
     cur.execute("""
-        SELECT s.last_name, s.first_name, s.middle_name, s.id
-        FROM students s
-        JOIN student_subject_requests r ON s.id = r.student_id
-        WHERE r.subject_id = %s AND r.status = 'accepted'
-    """, (subject_id,))
+            SELECT s.last_name, s.first_name, s.middle_name, s.id
+            FROM students s
+            JOIN student_subject_requests r ON s.id = r.student_id
+            WHERE r.subject_id = %s AND r.status = 'accepted'
+        """, (subject_id,))
     students = cur.fetchall()
 
     now = datetime.now().time()
