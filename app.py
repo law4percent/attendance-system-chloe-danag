@@ -42,7 +42,6 @@ def timedelta_to_str(td):
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-
 def get_student_time_in(student_id, subject_id):
     cur = mysql.connection.cursor()
     today = date.today()  # Get today's date in Python
@@ -695,15 +694,6 @@ def update_request(request_id, action):
     subject_id = cur.fetchone()[0]
 
     return redirect(f'/subject_requests/{subject_id}')
-
-def timedelta_to_str(td):
-    if isinstance(td, timedelta):
-        total_seconds = int(td.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        return f"{hours:02d}:{minutes:02d}"
-    return 'N/A'
-
 
 @app.route('/student_profile')
 @role_required('student')
