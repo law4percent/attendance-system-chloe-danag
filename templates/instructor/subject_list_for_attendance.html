@@ -74,7 +74,7 @@
                     <td data-label="No. of enrolled students">{{ subject.student_count }}</td>
                     <td data-label="Action">
                         {% if subject.is_active_now %}
-                            <a href="{{ url_for('student_attendance', subject_id=subject.id) }}" class="btn">Take Attendance</a>
+                            <a href="{{ url_for('subject_attendance_board', subject_id=subject.id) }}" class="btn">Take Attendance</a>
                         {% else %}
                             <button class="btn" disabled style="background-color: gray; cursor: not-allowed;" title="Not within class time">Take Attendance</button>
                         {% endif %}

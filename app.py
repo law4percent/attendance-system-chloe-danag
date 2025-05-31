@@ -32,6 +32,14 @@ app.config['MYSQL_PASSWORD'] = config.MYSQL_PASSWORD
 app.config['MYSQL_DB'] = config.MYSQL_DB
 mysql = MySQL(app)
 
+def timedelta_to_str(td):
+    total_seconds = int(td.total_seconds())
+    total_seconds = total_seconds % (24 * 3600)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
 def get_student_time_in(student_id, subject_id):
     cur = mysql.connection.cursor()
     today = date.today()  # Get today's date in Python
@@ -47,6 +55,7 @@ def get_student_time_in(student_id, subject_id):
 @app.route('/')
 @role_required('instructor')
 def subject_for_attendance():
+    print('>>>>> subject_for_attendance')
     instructor_id = session['user']
     instructor_email = session.get('email')
 
@@ -104,12 +113,16 @@ def subject_for_attendance():
 
 @app.route('/attendance/<int:subject_id>')
 @role_required('instructor')
-def student_attendance(subject_id):
+def subject_attendance_board(subject_id):
+    print('>>>>> subject_attendance_board')
     cur = mysql.connection.cursor(DictCursor)
 
     # Get subject info
     cur.execute("SELECT * FROM subjects WHERE id = %s", (subject_id,))
     subject = cur.fetchone()
+
+    subject['start_time_str'] = timedelta_to_str(subject['class_start_time'])
+    subject['end_time_str'] = timedelta_to_str(subject['class_end_time'])
 
     # Get enrolled students
     cur.execute("""
@@ -123,53 +136,42 @@ def student_attendance(subject_id):
     now = datetime.now().time()
     today = date.today()
     attendance_list = []
+    class_start = subject['class_start_time']
 
     for student in students:
+        mark = 'absent'
         student_id = student['id']
-        time_in = get_student_time_in(student_id, subject_id)
+        student_time_in = get_student_time_in(student_id, subject_id)  # this is timedelta
 
-        if not time_in:
-            # Simulate a time_in capture (in real scenario this may come from RFID or manual input)
-            time_in = now  # mark current time
-
-            # Determine attendance status
-            class_start = subject['class_start_time']
-            mark = "absent"
-            if isinstance(class_start, time) and time_in <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
-                mark = "check"
-            else:
-                mark = "late"
-
-            # Insert attendance record
-            try:
-                cur.execute("""
+        if not student_time_in:
+            # this must only initialize and must execute once
+            cur.execute("""
                     INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
                     VALUES (%s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
-                """, (student_id, subject_id, time_in, today, mark))
+                """, (student_id, subject_id, student_time_in, today, mark))
 
-                mysql.connection.commit()
-            except Exception as e:
-                print("Error inserting attendance:", e)
-
+            mysql.connection.commit()
         else:
-            # Determine mark for already recorded time_in
-            class_start = subject['class_start_time']
-            if isinstance(class_start, time) and time_in <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
-                mark = "check"
+              # timedelta
+            student_time = student_time_in  # timedelta
+
+            # check if student arrived within 15 minutes of class start
+            if student_time <= class_start + timedelta(minutes=15):
+                mark = 'check'
             else:
-                mark = "late"
+                mark = 'late'
 
         # Convert time_in to string safely
-        if isinstance(time_in, timedelta):
-            total_seconds = int(time_in.total_seconds())
+        if isinstance(student_time_in, timedelta):
+            total_seconds = int(student_time_in.total_seconds())
             hours, remainder = divmod(total_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
             time_in_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        elif isinstance(time_in, time):
-            time_in_str = time_in.strftime('%H:%M:%S')
-        elif isinstance(time_in, datetime):
-            time_in_str = time_in.time().strftime('%H:%M:%S')
+        elif isinstance(student_time_in, time):
+            time_in_str = student_time_in.strftime('%H:%M:%S')
+        elif isinstance(student_time_in, datetime):
+            time_in_str = student_time_in.time().strftime('%H:%M:%S')
         else:
             time_in_str = 'N/A'
 
@@ -181,53 +183,103 @@ def student_attendance(subject_id):
             'mark': mark
         })
 
-    return render_template('instructor/subject_attendance.html', subject=subject, attendance_list=attendance_list)
+    return render_template(
+            'instructor/subject_attendance_board.html', 
+            subject=subject, 
+            attendance_list=attendance_list,
+            end_time=subject['class_end_time']
+        )
 
-
-@app.route('/api/mark_attendance', methods=['POST'])
-def mark_attendance():
-    data = request.get_json()
-    fingerprint_id = data.get('fingerprint_id')
-    subject_id = data.get('subject_id')
-
-    if not fingerprint_id or not subject_id:
-        return jsonify({'status': 'error', 'message': 'Missing data'}), 400
-
+@app.route('/finalize_attendance/<int:subject_id>', methods=['POST'])
+@role_required('instructor')
+def finalize_attendance(subject_id):
     cur = mysql.connection.cursor(DictCursor)
-    
-    # Find the student with this fingerprint ID
-    cur.execute("SELECT id FROM students WHERE fingerprint_id = %s", (fingerprint_id,))
-    student = cur.fetchone()
-    
-    if not student:
-        return jsonify({'status': 'error', 'message': 'Unknown fingerprint ID'}), 404
 
-    student_id = student['id']
-    now = datetime.now().time()
-    today = date.today()
-
-    # Get class start time
+    # Get subject start time
     cur.execute("SELECT class_start_time FROM subjects WHERE id = %s", (subject_id,))
     subject = cur.fetchone()
-
     class_start = subject['class_start_time']
-    if isinstance(class_start, time) and now <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
-        mark = "check"
-    else:
-        mark = "late"
 
-    # Insert attendance
-    try:
+    # Recalculate attendance marks
+    cur.execute("""
+        SELECT id, student_id, time_in
+        FROM student_attendance
+        WHERE subject_id = %s AND DATE(date) = CURDATE()
+    """, (subject_id,))
+    records = cur.fetchall()
+
+    for record in records:
+        attendance_id = record['id']
+        student_time = record['time_in']
+
+        if student_time is None:
+            mark = 'absent'
+        else:
+            # Convert time_in to timedelta if stored as time
+            if isinstance(student_time, time):
+                student_time = timedelta(
+                    hours=student_time.hour, minutes=student_time.minute, seconds=student_time.second
+                )
+            if student_time <= class_start + timedelta(minutes=15):
+                mark = 'check'
+            else:
+                mark = 'late'
+
         cur.execute("""
-            INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
-            VALUES (%s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
-        """, (student_id, subject_id, now, today, mark))
-        mysql.connection.commit()
-        return jsonify({'status': 'success', 'message': 'Attendance marked'})
-    except Exception as e:
-        print("Error:", e)
-        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+            UPDATE student_attendance
+            SET mark = %s
+            WHERE id = %s
+        """, (mark, attendance_id))
+
+    mysql.connection.commit()
+    return jsonify({'message': 'Attendance finalized'}), 200
+
+
+
+# @app.route('/api/mark_attendance', methods=['POST'])
+# def mark_attendance():
+#     data = request.get_json()
+#     fingerprint_id = data.get('fingerprint_id')
+#     subject_id = data.get('subject_id')
+
+#     if not fingerprint_id or not subject_id:
+#         return jsonify({'status': 'error', 'message': 'Missing data'}), 400
+
+#     cur = mysql.connection.cursor(DictCursor)
+    
+#     # Find the student with this fingerprint ID
+#     cur.execute("SELECT id FROM students WHERE fingerprint_id = %s", (fingerprint_id,))
+#     student = cur.fetchone()
+    
+#     if not student:
+#         return jsonify({'status': 'error', 'message': 'Unknown fingerprint ID'}), 404
+
+#     student_id = student['id']
+#     now = datetime.now().time()
+#     today = date.today()
+
+#     # Get class start time
+#     cur.execute("SELECT class_start_time FROM subjects WHERE id = %s", (subject_id,))
+#     subject = cur.fetchone()
+
+#     class_start = subject['class_start_time']
+#     if isinstance(class_start, time) and now <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
+#         mark = "check"
+#     else:
+#         mark = "late"
+
+#     # Insert attendance
+#     try:
+#         cur.execute("""
+#             INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
+#             VALUES (%s, %s, %s, %s, %s)
+#             ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
+#         """, (student_id, subject_id, now, today, mark))
+#         mysql.connection.commit()
+#         return jsonify({'status': 'success', 'message': 'Attendance marked'})
+#     except Exception as e:
+#         print("Error:", e)
+#         return jsonify({'status': 'error', 'message': 'Database error'}), 500
 
 
 
