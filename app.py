@@ -4,6 +4,7 @@ from MySQLdb.cursors import DictCursor
 import config
 from functools import wraps
 from collections import defaultdict
+from datetime import time, timedelta
 
 def role_required(role):
     def decorator(f):
@@ -33,7 +34,18 @@ mysql = MySQL(app)
 
 @app.route('/')
 def home():
-    return redirect('/login')
+    # This home() function will use later as a Attendance Page
+    # Features
+    # 
+    return redirect('/attendance') # Temporarily /login
+
+@app.route('/attendance')
+@role_required('instructor')
+def attendance():
+    # This home() function will use later as a Attendance Page
+    # Features
+    # 
+    return render_template('instructor/student_attendance.html') # Temporarily /login
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -121,41 +133,59 @@ def register():
 
     return render_template('auth/register.html', role=role)
 
-@app.route('/instructor_profile')
-def instructor_profile():
-    if session.get('role') != 'instructor':
-        return redirect('/login')
+from datetime import time  # Make sure this import is present at the top
 
+@app.route('/instructor_profile')
+@role_required('instructor')
+def instructor_profile():
     instructor_id = session.get('user')
     instructor_email = session.get('email') 
 
-    print(f"✅instructor_email: {instructor_email}")
-
     cur = mysql.connection.cursor(DictCursor)
 
-    # Get subjects and count
-    cur.execute("""
-        SELECT s.id, s.subject_code, s.course_level, s.section,
-            COUNT(ss.student_id) AS enrolled_count
-        FROM subjects s
-        LEFT JOIN student_subjects ss ON s.id = ss.subject_id
-        WHERE s.instructor_id = %s
-        GROUP BY s.id, s.subject_code, s.course_level, s.section
-    """, (instructor_id,))
-    
+    cur.execute(
+        """
+            SELECT s.id, s.subject_code, s.course_level, s.section,
+                s.class_start_time, s.class_end_time, s.class_duration_time,
+                COUNT(ss.student_id) AS enrolled_count
+            FROM subjects s
+            LEFT JOIN student_subjects ss ON s.id = ss.subject_id
+            WHERE s.instructor_id = %s
+            GROUP BY s.id, s.subject_code, s.course_level, s.section,
+                    s.class_start_time, s.class_end_time, s.class_duration_time
+        """, 
+        (instructor_id,)
+    )
+
     subjects = cur.fetchall()
     subject_count = len(subjects)
 
+    for subject in subjects:
+        start = subject['class_start_time']
+        end = subject['class_end_time']
+
+        subject['class_start_time'] = timedelta_to_str(start)
+        subject['class_end_time'] = timedelta_to_str(end)
+
+        # Duration formatting as before
+        duration = subject.get('class_duration_time')
+        if duration is not None:
+            hours = int(duration)
+            minutes = int(round((duration - hours) * 60))
+            subject['class_duration_time_display'] = f"{hours}:{minutes:02d}"
+        else:
+            subject['class_duration_time_display'] = 'N/A'
     # Get pending request counts per subject
     subject_ids = [subject['id'] for subject in subjects]
     if subject_ids:
         format_strings = ','.join(['%s'] * len(subject_ids))
-        cur.execute(f"""
-            SELECT subject_id, COUNT(*) as pending_count
-            FROM student_subject_requests
-            WHERE subject_id IN ({format_strings}) AND status = 'pending'
-            GROUP BY subject_id
-        """, tuple(subject_ids))
+        cur.execute(
+            f"""
+                SELECT subject_id, COUNT(*) as pending_count
+                FROM student_subject_requests
+                WHERE subject_id IN ({format_strings}) AND status = 'pending'
+                GROUP BY subject_id
+            """, tuple(subject_ids))
         pending_counts = {row['subject_id']: row['pending_count'] for row in cur.fetchall()}
     else:
         pending_counts = {}
@@ -206,10 +236,8 @@ def logout():
     return redirect('/login')
 
 @app.route('/delete_subject/<int:subject_id>')
+@role_required('instructor')
 def delete_subject(subject_id):
-    if session.get('role') != 'instructor':
-        return redirect('/login')
-
     instructor_id = session.get('user')
 
     cur = mysql.connection.cursor()
@@ -232,20 +260,31 @@ def delete_subject(subject_id):
     return redirect('/instructor_profile')
 
 @app.route('/add_subject', methods=['POST'])
+@role_required('instructor')
 def add_subject():
-    if session.get('role') != 'instructor':
-        return redirect('/login')
-
     subject = request.form['subject']
     course_level = request.form['course_level']
     section = request.form['section']
+    class_start_time = request.form['class_start_time']
+    class_end_time = request.form['class_end_time']
+    class_duration_time = request.form.get('class_duration_time')
     instructor_id = session['user']
+
+    if not class_duration_time:
+        flash("Duration is required")
+        return redirect('/instructor_profile')
 
     cur = mysql.connection.cursor()
     cur.execute("""
-        INSERT INTO subjects (instructor_id, subject_code, course_level, section)
-        VALUES (%s, %s, %s, %s)
-    """, (instructor_id, subject, course_level, section))
+        INSERT INTO subjects (
+            instructor_id, subject_code, course_level, section,
+            class_start_time, class_end_time, class_duration_time
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (
+        instructor_id, subject, course_level, section,
+        class_start_time, class_end_time, class_duration_time
+    ))
     mysql.connection.commit()
     flash('Subject added successfully!')
     return redirect('/instructor_profile')
@@ -398,21 +437,47 @@ def update_request(request_id, action):
 
     return redirect(f'/subject_requests/{subject_id}')
 
-@app.route('/student_profile')
-def student_profile():
-    if session.get('role') != 'student':
-        return redirect('/login')
+def timedelta_to_str(td):
+    if isinstance(td, timedelta):
+        total_seconds = int(td.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"
+    return 'N/A'
 
+
+@app.route('/student_profile')
+@role_required('student')
+def student_profile():
     student_id = session['user']
     cur = mysql.connection.cursor(DictCursor)
 
     # Fetch all subjects
     cur.execute("""
-        SELECT s.id, s.subject_code, s.course_level, s.section, i.email as instructor_email
+        SELECT s.id, s.subject_code, s.course_level, s.section, 
+            i.email AS instructor_email,
+            s.class_start_time, s.class_end_time, s.class_duration_time
         FROM subjects s
         JOIN instructors i ON s.instructor_id = i.employee_ID
     """)
+
     subjects = cur.fetchall()
+
+    for subject in subjects:
+        start = subject['class_start_time']
+        end = subject['class_end_time']
+
+        subject['class_start_time'] = timedelta_to_str(start)
+        subject['class_end_time'] = timedelta_to_str(end)
+
+        # Duration formatting as before
+        duration = subject.get('class_duration_time')
+        if duration is not None:
+            hours = int(duration)
+            minutes = int(round((duration - hours) * 60))
+            subject['class_duration_time_display'] = f"{hours}:{minutes:02d}"
+        else:
+            subject['class_duration_time_display'] = 'N/A'
 
     cur.execute("SELECT first_name, middle_name, last_name, course_level, section FROM students WHERE id = %s", (student_id,))
     student_info = cur.fetchone()

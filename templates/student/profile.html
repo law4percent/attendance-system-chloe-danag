@@ -29,6 +29,7 @@
             <th>Course Level</th>
             <th>Section</th>
             <th>Instructor Email</th>
+            <th>Class Time</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -39,6 +40,10 @@
               <td>{{ subject.course_level }}</td>
               <td>{{ subject.section }}</td>
               <td>{{ subject.instructor_email }}</td>
+              <td>
+                {{ subject.class_start_time }} - {{ subject.class_end_time }}<br>
+                Duration: {{ subject.class_duration_time_display }}
+              </td>
               <td>
                 {% if subject.id in requested_subjects %}
                   {% set statuses = requested_subjects[subject.id] %}
