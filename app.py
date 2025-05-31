@@ -5,6 +5,9 @@ import config
 from functools import wraps
 from collections import defaultdict
 from datetime import time, timedelta, date, datetime
+import requests
+
+ESP32_URL = "http://<esp32-ip-address>/start_fingerprint"
 
 def role_required(role):
     def decorator(f):
@@ -114,6 +117,13 @@ def subject_for_attendance():
 @app.route('/attendance/<int:subject_id>')
 @role_required('instructor')
 def subject_attendance_board(subject_id):
+
+    try:
+        esp32_ip = 'http://<ESP32_IP>:5000/set_subject'
+        requests.post(esp32_ip, json={'subject_id': subject_id, 'status': 'start'})
+    except Exception as e:
+        print(f"Failed to contact ESP32: {e}")
+
     print('>>>>> subject_attendance_board')
     cur = mysql.connection.cursor(DictCursor)
 
@@ -232,55 +242,70 @@ def finalize_attendance(subject_id):
         """, (mark, attendance_id))
 
     mysql.connection.commit()
+    
+    try:        
+        esp32_ip = "http://<ESP32_IP>:5000/set_subject"
+        payload = {
+            'subject_id': subject_id,
+            'status': 'stop'
+        }
+
+        response = requests.post(esp32_ip, json=payload)
+
+        if response.status_code != 200:
+            return jsonify({'error': 'ESP32 responded with an error', 'details': response.text}), 500
+
+    except Exception as e:
+        print("ESP32 stop command failed:", e)
+        return jsonify({'error': 'Failed to contact ESP32', 'details': str(e)}), 500
+
     return jsonify({'message': 'Attendance finalized'}), 200
 
 
+@app.route('/api/fingerprint_log', methods=['POST'])
+def fingerprint_log():
+    data = request.get_json()
+    fingerprint_id = data.get('fingerprint_id')
+    subject_id = data.get('subject_id')
+    today = date.today()
 
-# @app.route('/api/mark_attendance', methods=['POST'])
-# def mark_attendance():
-#     data = request.get_json()
-#     fingerprint_id = data.get('fingerprint_id')
-#     subject_id = data.get('subject_id')
+    cur = mysql.connection.cursor(DictCursor)
 
-#     if not fingerprint_id or not subject_id:
-#         return jsonify({'status': 'error', 'message': 'Missing data'}), 400
+    # Match student
+    cur.execute("""
+        SELECT id FROM students WHERE 
+            %s IN (registered_fingerprint_1, registered_fingerprint_2, 
+                   registered_fingerprint_3, registered_fingerprint_4, 
+                   registered_fingerprint_5)
+    """, (fingerprint_id,))
+    student = cur.fetchone()
 
-#     cur = mysql.connection.cursor(DictCursor)
-    
-#     # Find the student with this fingerprint ID
-#     cur.execute("SELECT id FROM students WHERE fingerprint_id = %s", (fingerprint_id,))
-#     student = cur.fetchone()
-    
-#     if not student:
-#         return jsonify({'status': 'error', 'message': 'Unknown fingerprint ID'}), 404
+    if not student:
+        return jsonify({'message': 'Unknown fingerprint'}), 404
 
-#     student_id = student['id']
-#     now = datetime.now().time()
-#     today = date.today()
+    student_id = student['id']
 
-#     # Get class start time
-#     cur.execute("SELECT class_start_time FROM subjects WHERE id = %s", (subject_id,))
-#     subject = cur.fetchone()
+    # Check if already recorded
+    cur.execute("""
+        SELECT * FROM student_attendance
+        WHERE student_id = %s AND subject_id = %s AND date = %s
+    """, (student_id, subject_id, today))
+    existing = cur.fetchone()
 
-#     class_start = subject['class_start_time']
-#     if isinstance(class_start, time) and now <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
-#         mark = "check"
-#     else:
-#         mark = "late"
+    if existing:
+        return jsonify({'message': 'Already recorded'}), 200
 
-#     # Insert attendance
-#     try:
-#         cur.execute("""
-#             INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
-#             VALUES (%s, %s, %s, %s, %s)
-#             ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
-#         """, (student_id, subject_id, now, today, mark))
-#         mysql.connection.commit()
-#         return jsonify({'status': 'success', 'message': 'Attendance marked'})
-#     except Exception as e:
-#         print("Error:", e)
-#         return jsonify({'status': 'error', 'message': 'Database error'}), 500
+    # Record time_in
+    now = datetime.now().time()
+    mark = None  # Let your /finalize_attendance decide the mark
 
+    cur.execute("""
+        INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (student_id, subject_id, now, today, mark))
+    mysql.connection.commit()
+
+    return jsonify({'message': 'Attendance recorded'}), 200
 
 
 
