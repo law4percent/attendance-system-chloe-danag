@@ -11,6 +11,12 @@
 const char* ssid = SSID;
 const char* password = PASSWORD;
 
+IPAddress local_IP(192, 168, 1, 200);      // Desired static IP
+IPAddress gateway(192, 168, 1, 1);         // Typically your router's IP
+IPAddress subnet(255, 255, 255, 0);        // Subnet mask
+IPAddress primaryDNS(8, 8, 8, 8);          // Optional
+IPAddress secondaryDNS(8, 8, 4, 4);        // Optional
+
 // Flask API endpoint
 const char* flaskURL = "http://" + String(IPv4) + ":5000/api/fingerprint_log";
 
@@ -73,20 +79,25 @@ void connectToWiFi() {
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
-  WiFi.begin(ssid, password);
-  int attempts = 0;
+  // Configure static IP
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+    Serial.println("❌ Failed to configure static IP");
+  }
 
+  WiFi.begin(ssid, password);
+
+  int attempt = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.print(".");
-    attempts++;
-    if (attempts > 20) {
-      Serial.println("Failed to connect to WiFi");
+    attempt++;
+    if (attempt > 20) {
+      Serial.println("❌ Failed to connect to WiFi");
       return;
     }
   }
 
-  Serial.println("WiFi connected!");
+  Serial.println("\n✅ WiFi connected!");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 }
@@ -151,7 +162,7 @@ void checkFingerprintTemplate() {
 }
 
 void onServer() {
-  server.on("/set_subject_id", HTTP_POST, []() {
+  server.on("/set_subject", HTTP_POST, []() {
     if (server.hasArg("plain")) {
       String body = server.arg("plain");
       DynamicJsonDocument doc(1024);
@@ -181,4 +192,14 @@ void onServer() {
       server.send(400, "application/json", "{\"error\": \"No data received\"}");
     }
   });
+
+  // Add GET /status route for debugging
+  server.on("/status", HTTP_GET, []() {
+    String response = "{";
+    response += "\"subject_id\": " + String(subject_id) + ",";
+    response += "\"isScanning\": " + String(isScanning ? "true" : "false");
+    response += "}";
+    server.send(200, "application/json", response);
+  });
 }
+

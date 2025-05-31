@@ -7,7 +7,17 @@ from collections import defaultdict
 from datetime import time, timedelta, date, datetime
 import requests
 
-ESP32_URL = "http://<esp32-ip-address>/start_fingerprint"
+ESP32_IP = "192.168.1.200"  # Use your assigned static IP
+
+app = Flask(__name__)
+app.secret_key = config.SECRET_KEY
+
+# MySQL config
+app.config['MYSQL_HOST'] = config.MYSQL_HOST
+app.config['MYSQL_USER'] = config.MYSQL_USER
+app.config['MYSQL_PASSWORD'] = config.MYSQL_PASSWORD
+app.config['MYSQL_DB'] = config.MYSQL_DB
+mysql = MySQL(app)
 
 def role_required(role):
     def decorator(f):
@@ -22,18 +32,6 @@ def role_required(role):
             return f(*args, **kwargs)
         return wrapped
     return decorator
-
-
-
-app = Flask(__name__)
-app.secret_key = config.SECRET_KEY
-
-# MySQL config
-app.config['MYSQL_HOST'] = config.MYSQL_HOST
-app.config['MYSQL_USER'] = config.MYSQL_USER
-app.config['MYSQL_PASSWORD'] = config.MYSQL_PASSWORD
-app.config['MYSQL_DB'] = config.MYSQL_DB
-mysql = MySQL(app)
 
 def timedelta_to_str(td):
     total_seconds = int(td.total_seconds())
@@ -112,14 +110,15 @@ def subject_for_attendance():
 
     return render_template('instructor/subject_list_for_attendance.html', subjects=subjects, instructor_email=instructor_email)
 
-
 @app.route('/attendance/<int:subject_id>')
 @role_required('instructor')
 def subject_attendance_board(subject_id):
-
-    try:
-        esp32_ip = 'http://<ESP32_IP>:5000/set_subject'
-        requests.post(esp32_ip, json={'subject_id': subject_id, 'status': 'start'})
+    try:        
+        esp32_ip = f"http://{ESP32_IP}:5000/set_subject"
+        payload = {'subject_id': subject_id, 'status': 'start'}
+        response = requests.post(esp32_ip, json=payload)
+        if response.status_code != 200:
+            print(f"ERROR: ESP32 responded with an error {response.text}")
     except Exception as e:
         print(f"Failed to contact ESP32: {e}")
 
@@ -244,20 +243,15 @@ def finalize_attendance(subject_id):
     
     try:        
         esp32_ip = "http://<ESP32_IP>:5000/set_subject"
-        payload = {
-            'subject_id': subject_id,
-            'status': 'stop'
-        }
-
+        payload = {'subject_id': subject_id, 'status': 'stop'}
         response = requests.post(esp32_ip, json=payload)
-
         if response.status_code != 200:
             return jsonify({'error': 'ESP32 responded with an error', 'details': response.text}), 500
 
     except Exception as e:
         print("ESP32 stop command failed:", e)
         return jsonify({'error': 'Failed to contact ESP32', 'details': str(e)}), 500
-
+    
     return jsonify({'message': 'Attendance finalized'}), 200
 
 
