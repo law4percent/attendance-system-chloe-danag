@@ -4,7 +4,7 @@ from MySQLdb.cursors import DictCursor
 import config
 from functools import wraps
 from collections import defaultdict
-from datetime import time, timedelta
+from datetime import time, timedelta, date, datetime
 
 def role_required(role):
     def decorator(f):
@@ -32,26 +32,206 @@ app.config['MYSQL_PASSWORD'] = config.MYSQL_PASSWORD
 app.config['MYSQL_DB'] = config.MYSQL_DB
 mysql = MySQL(app)
 
-@app.route('/')
-def home():
-    # This home() function will use later as a Attendance Page
-    # Features
-    # 
-    return redirect('/attendance') # Temporarily /login
+def get_student_time_in(student_id, subject_id):
+    cur = mysql.connection.cursor()
+    today = date.today()  # Get today's date in Python
+    cur.execute("""
+        SELECT time_in
+        FROM student_attendance
+        WHERE student_id = %s AND subject_id = %s AND date = %s
+        LIMIT 1
+    """, (student_id, subject_id, today))
+    result = cur.fetchone()
+    return result[0] if result else None
 
-@app.route('/attendance')
+@app.route('/')
+@role_required('instructor')  # Assuming you only want instructors here
+def attendance_page():
+    instructor_id = session['user'] #
+    instructor_email = session.get('email') 
+
+    cur = mysql.connection.cursor(DictCursor)
+
+    # Get all subjects assigned to this instructor
+    cur.execute("""
+        SELECT 
+            s.id,
+            s.subject_code,
+            s.course_level,
+            s.section,
+            s.class_start_time,
+            s.class_end_time,
+            s.class_duration_time,
+            (
+                SELECT COUNT(*) 
+                FROM student_subject_requests ssr 
+                WHERE ssr.subject_id = s.id AND ssr.status = 'accepted'
+            ) AS student_count,
+            (
+                SELECT COUNT(*) 
+                FROM student_subject_requests ssr 
+                WHERE ssr.subject_id = s.id AND ssr.status = 'pending'
+            ) AS pending_count
+        FROM subjects s
+        WHERE s.instructor_id = %s
+    """, (instructor_id,))
+
+    subjects = cur.fetchall()
+
+    # Convert time values to readable format
+    for subject in subjects:
+        subject['start_time'] = timedelta_to_str(subject['class_start_time'])
+        subject['end_time'] = timedelta_to_str(subject['class_end_time'])
+
+        duration = subject.get('class_duration_time')
+        if duration is not None:
+            hours = int(duration)
+            minutes = int(round((duration - hours) * 60))
+            subject['duration_time'] = f"{hours}:{minutes:02d}"
+        else:
+            subject['duration_time'] = 'N/A'
+
+    return render_template('instructor/subject_list_for_attendance.html', subjects=subjects, instructor_email=instructor_email)
+
+
+@app.route('/attendance/<int:subject_id>')
 @role_required('instructor')
-def attendance():
-    # This home() function will use later as a Attendance Page
-    # Features
-    # 
-    return render_template('instructor/student_attendance.html') # Temporarily /login
+def student_attendance(subject_id):
+    cur = mysql.connection.cursor(DictCursor)
+
+    # Get subject info
+    cur.execute("SELECT * FROM subjects WHERE id = %s", (subject_id,))
+    subject = cur.fetchone()
+
+    # Get enrolled students
+    cur.execute("""
+        SELECT s.last_name, s.first_name, s.middle_name, s.id
+        FROM students s
+        JOIN student_subject_requests r ON s.id = r.student_id
+        WHERE r.subject_id = %s AND r.status = 'accepted'
+    """, (subject_id,))
+    students = cur.fetchall()
+
+    now = datetime.now().time()
+    today = date.today()
+    attendance_list = []
+
+    for student in students:
+        student_id = student['id']
+        time_in = get_student_time_in(student_id, subject_id)
+
+        if not time_in:
+            # Simulate a time_in capture (in real scenario this may come from RFID or manual input)
+            time_in = now  # mark current time
+
+            # Determine attendance status
+            class_start = subject['class_start_time']
+            mark = "absent"
+            if isinstance(class_start, time) and time_in <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
+                mark = "check"
+            else:
+                mark = "late"
+
+            # Insert attendance record
+            try:
+                cur.execute("""
+                    INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
+                """, (student_id, subject_id, time_in, today, mark))
+
+                mysql.connection.commit()
+            except Exception as e:
+                print("Error inserting attendance:", e)
+
+        else:
+            # Determine mark for already recorded time_in
+            class_start = subject['class_start_time']
+            if isinstance(class_start, time) and time_in <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
+                mark = "check"
+            else:
+                mark = "late"
+
+        # Convert time_in to string safely
+        if isinstance(time_in, timedelta):
+            total_seconds = int(time_in.total_seconds())
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            time_in_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        elif isinstance(time_in, time):
+            time_in_str = time_in.strftime('%H:%M:%S')
+        elif isinstance(time_in, datetime):
+            time_in_str = time_in.time().strftime('%H:%M:%S')
+        else:
+            time_in_str = 'N/A'
+
+        attendance_list.append({
+            'last_name': student['last_name'],
+            'first_name': student['first_name'],
+            'middle_name': student['middle_name'],
+            'time_in': time_in_str,
+            'mark': mark
+        })
+
+    return render_template('instructor/subject_attendance.html', subject=subject, attendance_list=attendance_list)
+
+
+@app.route('/api/mark_attendance', methods=['POST'])
+def mark_attendance():
+    data = request.get_json()
+    fingerprint_id = data.get('fingerprint_id')
+    subject_id = data.get('subject_id')
+
+    if not fingerprint_id or not subject_id:
+        return jsonify({'status': 'error', 'message': 'Missing data'}), 400
+
+    cur = mysql.connection.cursor(DictCursor)
+    
+    # Find the student with this fingerprint ID
+    cur.execute("SELECT id FROM students WHERE fingerprint_id = %s", (fingerprint_id,))
+    student = cur.fetchone()
+    
+    if not student:
+        return jsonify({'status': 'error', 'message': 'Unknown fingerprint ID'}), 404
+
+    student_id = student['id']
+    now = datetime.now().time()
+    today = date.today()
+
+    # Get class start time
+    cur.execute("SELECT class_start_time FROM subjects WHERE id = %s", (subject_id,))
+    subject = cur.fetchone()
+
+    class_start = subject['class_start_time']
+    if isinstance(class_start, time) and now <= (datetime.combine(today, class_start) + timedelta(minutes=15)).time():
+        mark = "check"
+    else:
+        mark = "late"
+
+    # Insert attendance
+    try:
+        cur.execute("""
+            INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
+        """, (student_id, subject_id, now, today, mark))
+        mysql.connection.commit()
+        return jsonify({'status': 'success', 'message': 'Attendance marked'})
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
+
+
+
+
+
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     role = request.args.get('role', 'instructor')  # Default to instructor
-
+    
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
@@ -78,7 +258,7 @@ def login():
             session['role'] = role
             session['email'] = user['email']  # Store email for greeting
 
-            return redirect('/instructor_profile' if role == 'instructor' else '/student_profile')
+            return redirect('/' if role == 'instructor' else '/student_profile')
         else:
             flash("Invalid email or password (incorrect password)")
             return redirect(f'/login?role={role}')
@@ -133,11 +313,9 @@ def register():
 
     return render_template('auth/register.html', role=role)
 
-from datetime import time  # Make sure this import is present at the top
-
-@app.route('/instructor_profile')
+@app.route('/edit-or-add-subject')
 @role_required('instructor')
-def instructor_profile():
+def edit_or_add_subjects():
     instructor_id = session.get('user')
     instructor_email = session.get('email') 
 
@@ -200,7 +378,7 @@ def instructor_profile():
         grouped_subjects.setdefault(level, []).append(subject)
 
     return render_template(
-        'instructor/profile.html',
+        'instructor/edit_add_subjects.html',
         grouped_subjects=grouped_subjects,
         instructor_email=instructor_email,
         subject_count=subject_count
@@ -208,7 +386,7 @@ def instructor_profile():
 
 @app.route('/edit_instructor_profile', methods=['GET', 'POST'])
 @role_required('instructor')
-def edit_instructor_profile():
+def instructor_profile():
     employee_id = session['user']  # make sure this matches your session key
     cur = mysql.connection.cursor(DictCursor)  # Use DictCursor for dict results
 
@@ -224,11 +402,11 @@ def edit_instructor_profile():
         mysql.connection.commit()
 
         flash("Profile updated successfully!")
-        return redirect('/instructor_profile')
+        return redirect('/edit-or-add-subject')
 
     cur.execute("SELECT email, registered_fingerprint_ID FROM instructors WHERE employee_id = %s", (employee_id,))
     instructor = cur.fetchone()
-    return render_template('instructor/edit_profile.html', instructor=instructor)
+    return render_template('instructor/profile.html', instructor=instructor)
 
 @app.route('/logout')
 def logout():
@@ -257,7 +435,7 @@ def delete_subject(subject_id):
     else:
         flash('Subject not found or unauthorized', 'error')
 
-    return redirect('/instructor_profile')
+    return redirect('/edit-or-add-subject')
 
 @app.route('/add_subject', methods=['POST'])
 @role_required('instructor')
@@ -272,7 +450,7 @@ def add_subject():
 
     if not class_duration_time:
         flash("Duration is required")
-        return redirect('/instructor_profile')
+        return redirect('/edit-or-add-subject')
 
     cur = mysql.connection.cursor()
     cur.execute("""
@@ -287,7 +465,7 @@ def add_subject():
     ))
     mysql.connection.commit()
     flash('Subject added successfully!')
-    return redirect('/instructor_profile')
+    return redirect('/edit-or-add-subject')
 
 @app.route('/subject/<int:subject_id>')
 def subject_students(subject_id):
@@ -343,10 +521,8 @@ def unenroll_student(subject_id, student_id):
     return redirect(url_for('subject_students', subject_id=subject_id))
 
 @app.route('/request_subject', methods=['POST'])
+@role_required('student')
 def request_subject():
-    if session.get('role') != 'student':
-        return redirect('/login')
-
     student_id = session['user']
     subject_id = request.form['subject_id']
 
@@ -381,10 +557,8 @@ def request_subject():
     return redirect('/student_profile')
 
 @app.route('/subject_requests/<int:subject_id>')
+@role_required('instructor')
 def subject_requests(subject_id):
-    if session.get('role') != 'instructor':
-        return redirect('/login')
-
     cur = mysql.connection.cursor()
     # Get pending requests for this subject
     cur.execute("""

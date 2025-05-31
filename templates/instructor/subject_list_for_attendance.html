@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject_code }} - {{ course_level }}{{ section }} Attendance System{% endblock title %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/instructor/subject_list_for_attendance.css') }}">
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h2>Welcome, {{ instructor_email }}</h2>
+        <h2>Your Subjects</h2>
+        <nav>
+            <div class="button-container">
+                <a href="{{ url_for('edit_or_add_subjects') }}">
+                    <button>Edit/Add Subjects</button>
+                </a>
+            </div>
+
+            <div class="button-container">
+                <a href="{{ url_for('instructor_profile') }}">
+                    <button>Your profile</button>
+                </a>
+            </div>
+
+            <div class="button-container">
+                    <a href="/logout">
+                        <button>Logout</button>
+                    </a>
+            </div>
+        </nav>
+       
+
+        <!-- Search Inputs -->
+        <table id="subjectsTable">
+            <thead>
+                <tr class="search-inputs">
+                    <th><input type="text" onkeyup="filterTable(0)" placeholder="Search Subject Code"></th>
+                    <th><input type="text" onkeyup="filterTable(1)" placeholder="Search Course Level"></th>
+                    <th><input type="text" onkeyup="filterTable(2)" placeholder="Search Section"></th>
+                    <th><input type="text" onkeyup="filterTable(3)" placeholder="Search Start Time"></th>
+                    <th><input type="text" onkeyup="filterTable(4)" placeholder="Search End Time"></th>
+                    <th><input type="text" onkeyup="filterTable(5)" placeholder="Search Duration"></th>
+                    <th><input type="text" onkeyup="filterTable(6)" placeholder="Search Students"></th>
+                    <th></th>
+                </tr>
+                <tr>
+                    <th>Subject Code</th>
+                    <th>Year Level</th>
+                    <th>Section</th>
+                    <th>Start Time (hh:mm)</th>
+                    <th>End Time (hh:mm)</th>
+                    <th>Duration (hh:mm)</th>
+                    <th>Enrolled Students</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subject in subjects %}
+                <tr>
+                    <td data-label="Subject Code">
+                        <a href="{{ url_for('subject_students', subject_id=subject.id) }}">
+                            {{ subject.subject_code }} {% if subject.pending_count %}({{ subject.pending_count }}){% endif %}
+                        </a>
+                    </td>
+
+                    <td data-label="Course Level">{{ subject.course_level }}</td>
+                    <td data-label="Section">{{ subject.section }}</td>
+                    <td data-label="Start Time">{{ subject.start_time }}</td>
+                    <td data-label="End Time">{{ subject.end_time }}</td>
+                    <td data-label="Duration">{{ subject.duration_time }}</td>
+                    <td data-label="Enrolled Students">{{ subject.student_count }}</td>
+                    <td data-label="Action">
+                        <a href="{{ url_for('student_attendance', subject_id=subject.id) }}" class="btn">Take Attendance</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function filterTable(colIndex) {
+            let input, filter, table, tr, td, i, txtValue;
+            table = document.getElementById("subjectsTable");
+            input = table.getElementsByTagName("input")[colIndex];
+            filter = input.value.toUpperCase();
+            tr = table.getElementsByTagName("tr");
+
+            for (i = 2; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td")[colIndex];
+                if (td) {
+                    txtValue = td.textContent || td.innerText;
+                    tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+                }
+            }
+        }
+    </script>
+{% endblock %}
