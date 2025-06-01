@@ -116,9 +116,13 @@ def subject_attendance_board(subject_id):
     try:        
         esp32_ip = f"http://{ESP32_IP}:5000/set_subject"
         payload = {'subject_id': subject_id, 'status': 'start'}
-        response = requests.post(esp32_ip, json=payload)
+        response = requests.post(esp32_ip, json=payload, timeout=3)  # 3-second timeout
         if response.status_code != 200:
             print(f"ERROR: ESP32 responded with an error {response.text}")
+    except requests.exceptions.Timeout:
+        print("ESP32 request timed out.")
+    except requests.exceptions.ConnectionError:
+        print("ESP32 connection failed.")
     except Exception as e:
         print(f"Failed to contact ESP32: {e}")
 
@@ -215,7 +219,16 @@ def finalize_attendance(subject_id):
     # Get subject start time
     cur.execute("SELECT class_start_time FROM subjects WHERE id = %s", (subject_id,))
     subject = cur.fetchone()
+    if not subject:
+        return jsonify({'error': 'Subject not found'}), 404
+
     class_start = subject['class_start_time']
+    
+    # If class_start is a time object, convert it to timedelta
+    if isinstance(class_start, time):
+        class_start = timedelta(
+            hours=class_start.hour, minutes=class_start.minute, seconds=class_start.second
+        )
 
     # Recalculate attendance marks
     cur.execute("""
@@ -232,7 +245,6 @@ def finalize_attendance(subject_id):
         if student_time is None:
             mark = 'absent'
         else:
-            # Convert time_in to timedelta if stored as time
             if isinstance(student_time, time):
                 student_time = timedelta(
                     hours=student_time.hour, minutes=student_time.minute, seconds=student_time.second
@@ -249,19 +261,32 @@ def finalize_attendance(subject_id):
         """, (mark, attendance_id))
 
     mysql.connection.commit()
-    
-    try:        
+
+    # Notify ESP32 to stop attendance (optional, based on availability)
+    try:
         esp32_ip = f"http://{ESP32_IP}:5000/set_subject"
         payload = {'subject_id': subject_id, 'status': 'stop'}
-        response = requests.post(esp32_ip, json=payload)
-        if response.status_code != 200:
-            return jsonify({'error': 'ESP32 responded with an error', 'details': response.text}), 500
+        response = requests.post(esp32_ip, json=payload, timeout=3)
+
+        response.raise_for_status()  # Raise exception if HTTP status != 200
+
+    except requests.exceptions.Timeout:
+        print("ESP32 connection timed out.")
+        return jsonify({'error': 'ESP32 request timed out'}), 504
+
+    except requests.exceptions.ConnectionError:
+        print("ESP32 unreachable.")
+        return jsonify({'error': 'ESP32 not reachable'}), 502
+
+    except requests.exceptions.HTTPError as http_err:
+        print(f"ESP32 responded with HTTP error: {http_err}")
+        return jsonify({'error': 'ESP32 responded with error', 'details': str(http_err)}), 500
 
     except Exception as e:
         print("ESP32 stop command failed:", e)
-        return jsonify({'error': 'Failed to contact ESP32', 'details': str(e)}), 500
-    
-    return jsonify({'message': 'Attendance finalized'}), 200
+        return jsonify({'error': 'Unexpected ESP32 communication error', 'details': str(e)}), 500
+
+    return jsonify({'message': 'Attendance finalized successfully'}), 200
 
 
 @app.route('/api/fingerprint_log', methods=['POST'])
