@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Records of {{ subject.subject_code }} - {{ subject.course_level }}{{ subject.section }}{% endblock title %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/subject/view_attendance.css') }}">
+{% endblock %}
+
+{% block navbar %}{% endblock navbar %}
+
+{% block content %}
+    <div class="container">
+        <div style="text-align: right;">
+            <a href="{{ url_for('subject_for_attendance') }}" class="clickable-link">Close</a>
+        </div>
+
+        <h2>Attendance Records - {{ subject.subject_code }}</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Time In</th>
+                    <th>Date</th>
+                    <th>Fingerprint Used</th>
+                    <th>Mark</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in attendance_records %}
+                <tr>
+                    <td data-label="Student Name">{{ record.last_name }}, {{ record.first_name }} {{ record.middle_name }}</td>
+                    <td data-label="Time In">{{ record.time_in or "N/A" }}</td>
+                    <td data-label="Date">{{ record.date }}</td>
+                    <td data-label="Fingerprint Used">{{ record.fingerprint_used or "N/A" }}</td>
+                    <td data-label="Mark">
+                        {% if record.mark == 'check' %}
+                            ✅ Present
+                        {% elif record.mark == 'late' %}
+                            🕒 Late
+                        {% else %}
+                            ❌ Absent
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                    <tr>
+                    <td colspan="5" style="font-style: italic; color: #666;">No enrolled students or records yet.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="text-align: center;">
+            <br><a href="#" class="clickable-link">Back to top</a>
+        </div>
+    </div>
+{% endblock %}

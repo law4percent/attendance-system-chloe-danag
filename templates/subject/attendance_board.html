@@ -3,8 +3,11 @@
 {% block title %}{{ subject.subject_code }} - {{ subject.course_level }}{{ subject.section }} Attendance{% endblock title %}
 
 {% block head %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/instructor/subject_attendance_board.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/subject/attendance_board.css') }}">
 {% endblock %}
+
+{% block navbar %}
+{% endblock navbar %}
 
 {% block content %}
   <script>
@@ -13,56 +16,65 @@
       return "Do not reload this page. Attendance data might not be stored.";
     };
   </script>
-  <nav>
+  
+  <div class="container">
+    <div style="text-align: right;">
+        <a href="{{ url_for('subject_for_attendance') }}" class="clickable-link">Close</a>
+    </div>
+
     <nav>
-      <h2>{{ subject.subject_code }} - {{ subject.course_level }}{{ subject.section }} Attendance</h2>
+      <h2>{{ subject.subject_code }} - {{ subject.course_level }}{{ subject.section }} Attendance ({{ date }})</h2>
       <h3>
         Start Time: {{ subject.start_time_str }} &nbsp; | &nbsp; End Time: {{ subject.end_time_str }}
       </h3>
     </nav>
-  <div class="alert" style="background-color: #ffeb3b; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
-    ⚠️ <strong>Warning:</strong> This page is waiting for fingerprint data. Do not reload. Attendance will be recorded once a fingerprint is scanned.
-  </div>
+    <div class="alert" style="background-color: #ffeb3b; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+      ⚠️ <strong>Warning:</strong> This page is waiting for fingerprint data. Do not reload. Attendance will be recorded once a fingerprint is scanned.
+    </div>
 
-  <form id="finalize-form" method="POST" action="{{ url_for('finalize_attendance', subject_id=subject.id) }}">
-    <div class="table-container">
-      <table class="attendance-table">
-        <thead>
-          <tr>
-            <th>Student Name</th>
-            <th>Time In</th>
-            <th>Fingerprint ID Used</th>
-            <th>Marked</th>
-          </tr>
-        </thead>
-        <tbody id="attendance-body">
-          {% for student in attendance_list %}
-          <tr>
-            <td>{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</td>
-            <td>{{ student.time_in }}</td>
-            <td>{{ student.fingerprint_used }}</td>
-            <td>
-              {% if student.mark == 'check' %}
-                <span class="mark-check">✅ Present</span>
-              {% elif student.mark == 'late' %}
-                <span class="mark-late">🕒 Late</span>
-              {% else %}
-                <span class="mark-absent">❌ Absent</span>
-              {% endif %}
-              <input type="hidden" name="mark_{{ student.id }}" value="{{ student.mark }}">
-            </td>
-          </tr>
+    <form id="finalize-form" method="POST" action="{{ url_for('finalize_attendance', subject_id=subject.id) }}">
+      <div style="margin-top: 1rem;">
+        <button type="submit" id="finalize-button">✅ Finalize Attendance</button>
+      </div>
+      
+      <div class="table-container">
+        <table class="attendance-table">
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Time In</th>
+              <th>Fingerprint ID Used</th>
+              <th>Marked</th>
+            </tr>
+          </thead>
+          <tbody id="attendance-body">
+            {% for student in attendance_list %}
+              <tr>
+                <td>{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</td>
+                <td>{{ student.time_in }}</td>
+                <td>{{ student.fingerprint_used }}</td>
+                <td>
+                  {% if student.mark == 'check' %}
+                    <span class="mark-check">✅ Present</span>
+                  {% elif student.mark == 'late' %}
+                    <span class="mark-late">🕒 Late</span>
+                  {% else %}
+                    <span class="mark-absent">❌ Absent</span>
+                  {% endif %}
+                  <input type="hidden" name="mark_{{ student.id }}" value="{{ student.mark }}">
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" style="font-style: italic; color: #666;">No enrolled students.</td>
+              </tr>
           {% endfor %}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
 
-    </div>
-
-    <div style="margin-top: 1rem;">
-      <button type="submit" id="finalize-button">✅ Finalize Attendance</button>
-    </div>
-  </form>
-
+      </div>
+    </form>
+  </div>
 
 
   <script>
@@ -100,24 +112,34 @@
     });
 
     // Convert PHP-passed time to Date object (HH:MM:SS)
-    const endTimeStr = "{{ end_time }}"; // passed from Flask
+    const startTimeStr = "{{ start_time }}";
+    const endTimeStr = "{{ end_time }}";
+    const [startHour, startMin, startSec] = startTimeStr.split(":").map(Number);
     const [endHour, endMin, endSec] = endTimeStr.split(":").map(Number);
 
     function checkEndTimeAndRedirect() {
       const now = new Date();
+
+      const startTime = new Date();
+      startTime.setHours(startHour, startMin, startSec, 0);
+
       const endTime = new Date();
       endTime.setHours(endHour, endMin, endSec, 0);
-            
+
+      // Fix for overnight classes (e.g., 10PM to 1AM)
+      if (endHour < startHour || (endHour === startHour && endMin <= startMin)) {
+        endTime.setDate(endTime.getDate() + 1);
+      }
+
       if (now >= endTime) {
-        // Optional: call an endpoint to finalize attendance (e.g. mark absentees)
         fetch("{{ url_for('finalize_attendance', subject_id=subject.id) }}", {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           }
         }).then(() => {
-          window.onbeforeunload = null; // prevent warning
-          window.location.href = "{{ url_for('subject_for_attendance') }}"; // redirect to home
+          window.onbeforeunload = null;
+          window.location.href = "{{ url_for('subject_for_attendance') }}";
         }).catch(err => {
           alert("Error saving attendance. Please try manually.");
           console.error(err);

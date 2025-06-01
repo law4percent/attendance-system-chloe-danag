@@ -6,8 +6,15 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/student/edit_profile.css') }}">
 {% endblock %}
 
+{% block navbar %}
+{% endblock navbar %}
+
 {% block content %}
   <div class="container">
+    <div style="text-align: right;">
+      <a href="{{ url_for('student_profile') }}" class="clickable-link">Close</a>
+    </div>
+
     <h2>Edit Profile</h2>
 
     <form method="POST" action="/edit_student_profile" novalidate>
@@ -21,7 +28,7 @@
       <input type="text" id="last_name" name="last_name" value="{{ student.last_name }}" required>
 
       <label for="school_id">School ID*:</label>
-      <input type="text" id="school_id" name="school_id" value="{{ student.school_ID }}" required>
+      <input type="text" id="school_id" name="school_id" value="{{ student.school_ID }}" disabled aria-disabled="true">
 
       <label for="section">Section*:</label>
       <input type="text" id="section" name="section" value="{{ student.section }}" required>
@@ -37,7 +44,7 @@
       </select>
 
       <label for="cor_link">COR Link*:</label>
-      <input type="text" id="cor_link" name="cor_link" value="{{ student.COR_link }}" required>
+      <input type="text" id="cor_link" name="cor_link" value="{{ student.COR_link }}" placeholder="Linked your google drive PDF" required>
 
       <label for="email">Email (username)*:</label>
       <input type="email" id="email" value="{{ student.email }}" disabled aria-disabled="true">
@@ -54,10 +61,5 @@
         </div>
       {% endif %}
     {% endwith %}
-
-    <div class="links">
-      <a href="/student_profile">Back to Profile</a> |
-      <a href="/logout">Logout</a>
-    </div>
   </div>
 {% endblock content %}

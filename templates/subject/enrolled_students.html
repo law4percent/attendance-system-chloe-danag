@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject[0] }} - {{ subject[1] }}{{ subject[2] }} Enrolled Students{% endblock title %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subject/enrolled_students.css') }}">
+{% endblock %}
+
+{% block navbar %}{% endblock navbar %}
+
+{% block content %}
+  <div class="wrapper">
+    <div class="container">
+      <div style="text-align: right;">
+        <a href="/" class="clickable-link">Close</a>
+      </div>
+
+      <h2>Students Enrolled in {{ subject[0] }} - {{ subject[1] }}{{ subject[2] }}</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Full Name</th>
+            <th>School ID</th>
+            <th>COR Link</th>
+            <th>Action</th> <!-- New column -->
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+            <tr>
+              <td data-label="Full Name">{{ student[1] }}, {{ student[0] }} {{ student[4] }}</td>
+              <td data-label="School ID">{{ student[2] }}</td>
+              <td data-label="COR Link">
+                <a href="{{ student[3] }}" target="_blank" rel="noopener noreferrer">View COR</a>
+              </td>
+              <td data-label="Action">
+                <a href="{{ url_for('unenroll_student', subject_id=subject_id, student_id=student[5]) }}"
+                  onclick="return confirm('Are you sure you want to unenroll this student?');"
+                  class="delete-link">
+                  Unenroll
+                </a>
+              </td>
+            </tr>
+
+          {% else %}
+            <tr>
+              <td colspan="6" style="font-style: italic; color: #666;">No students enrolled yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div style="text-align: center;">
+        <br><a href="#" class="clickable-link">Back to top</a>
+      </div>
+      
+    </div>
+  </div>
+{% endblock content %}

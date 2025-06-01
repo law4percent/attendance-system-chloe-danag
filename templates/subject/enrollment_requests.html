@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Enrollment Requests{% endblock title %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subject/enrollment_requests.css') }}">
+{% endblock %}
+
+{% block navbar %}{% endblock navbar %}
+
+{% block content %}
+  <div class="wrapper">
+    <div class="container">
+      <div style="text-align: right;">
+        <a href="/" class="clickable-link">Close</a>
+      </div>
+      <h2>Pending enrollment requests for {{ subject[0] }} - {{ subject[1] }}{{ subject[2] }}</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Last Name</th>
+            <th>First Name</th>
+            <th>Middle Name</th>
+            <th>School ID</th>
+            <th>COR Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in requests %}
+            <tr>
+              <td data-label="Last Name">{{ req[1] }}</td>
+              <td data-label="First Name">{{ req[2] }}</td>
+              <td data-label="Middle Name">{{ req[3] or 'N/A' }}</td>
+              <td data-label="COR Link"><a href="{{ req[4] }}" target="_blank" rel="noopener noreferrer">View COR</a></td>
+              <td data-label="Action">
+                <span>
+                  <a href="{{ url_for('update_request', request_id=req[0], action='accept') }}" class="action-link accept">Accept</a>
+                  <a href="{{ url_for('update_request', request_id=req[0], action='reject') }}" class="action-link reject">Reject</a>
+                </span>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" style="font-style: italic; color: #666;">No pending enrollment requests.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div style="text-align: center;">
+        <br><a href="#" class="clickable-link">Back to top</a>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

@@ -1,0 +1,106 @@
+/* Wrapper + Container */
+.wrapper {
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: #fff;
+  padding: 30px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Page Heading */
+h2 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+/* Link Styles */
+.clickable-link {
+  color: #2980b9;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.clickable-link:hover {
+  background-color: #ecf0f1;
+  text-decoration: underline;
+}
+
+.delete-link {
+  color: #e74c3c;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.delete-link:hover {
+  text-decoration: underline;
+}
+
+/* Table Styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+thead th {
+  background-color: #2c3e50;
+  color: #fff;
+  padding: 12px;
+  text-align: left;
+  font-size: 14px;
+}
+
+tbody td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+/* Responsive Table */
+@media (max-width: 700px) {
+  table, thead, tbody, th, td, tr {
+    display: block;
+    /* width: 100%; */
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody tr {
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  tbody td {
+    padding-left: 50%;
+    position: relative;
+    text-align: right;
+    border: none;
+  }
+
+  tbody td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+  }
+}

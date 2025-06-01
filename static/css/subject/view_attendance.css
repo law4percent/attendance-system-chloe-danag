@@ -90,3 +90,20 @@ tr:hover {
         font-weight: bold;
     }
 }
+
+
+/* Clickable Link */
+.clickable-link {
+  display: inline-block;
+  color: #2980b9;
+  text-decoration: none;
+  font-weight: bold;
+  padding: 5px 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.clickable-link:hover {
+  background-color: #ecf0f1;
+  text-decoration: underline;
+}

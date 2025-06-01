@@ -1,0 +1,140 @@
+/* Wrapper and Container */
+.wrapper {
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: auto;
+  background-color: #ffffff;
+  padding: 30px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Heading */
+h2 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+/* Link Buttons */
+.clickable-link {
+  color: #2980b9;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.clickable-link:hover {
+  background-color: #ecf0f1;
+  text-decoration: underline;
+}
+
+.action-link {
+  margin-right: 10px;
+  font-weight: bold;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.action-link.accept {
+  background-color: #27ae60;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.action-link.reject {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.action-link.accept:hover {
+  background-color: #219150;
+}
+
+.action-link.reject:hover {
+  background-color: #c0392b;
+}
+
+/* Table Styles */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+thead th {
+  background-color: #2c3e50;
+  color: white;
+  padding: 12px;
+  text-align: left;
+  font-size: 14px;
+}
+
+tbody td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+/* Responsive Table */
+@media (max-width: 700px) {
+  table, thead, tbody, th, td, tr {
+    display: block;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody tr {
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  tbody td {
+    padding-left: 50%;
+    position: relative;
+    text-align: right;
+    border: none;
+  }
+
+  tbody td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+  }
+
+  td[data-label="Action"] {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .action-link {
+    width: fit-content;
+    margin: 90px 0;
+  }
+}
+
+td[data-label="Action"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px; /* spacing between buttons */
+  justify-content: flex-end;
+}

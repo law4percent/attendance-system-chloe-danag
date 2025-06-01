@@ -1,10 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard{% endblock title %}
+{% block title %}Subjects Dashboard{% endblock title %}
 
 {% block head %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/student/profile.css') }}">
 {% endblock %}
+
+{% block navbar %}
+  <div class="logo">Attendance System</div>
+  <nav>
+  <a href="{{ url_for('edit_student_profile') }}">Edit profile</a>
+  <a href="/logout">Logout</a>
+  </nav>
+{% endblock navbar %}
 
 {% block content %}
   <div class="container">
@@ -36,15 +44,15 @@
         <tbody>
           {% for subject in subjects %}
             <tr>
-              <td>{{ subject.subject_code }}</td>
-              <td>{{ subject.course_level }}</td>
-              <td>{{ subject.section }}</td>
-              <td>{{ subject.instructor_email }}</td>
-              <td>
+              <td data-label="Subject Code">{{ subject.subject_code }}</td>
+              <td data-label="Course Level">{{ subject.course_level }}</td>
+              <td data-label="Section">{{ subject.section }}</td>
+              <td data-label="Instructor Email"><small>{{ subject.instructor_email }}</small></td>
+              <td data-label="Class Time">
                 {{ subject.class_start_time }} - {{ subject.class_end_time }}<br>
                 Duration: {{ subject.class_duration_time_display }}
               </td>
-              <td>
+              <td data-label="Action">
                 {% if subject.id in requested_subjects %}
                   {% set statuses = requested_subjects[subject.id] %}
                   {% if 'accepted' in statuses %}
@@ -89,8 +97,8 @@
       {% endif %}
     {% endwith %}
 
-    <div class="logout">
-      <a href="/logout">Logout</a>
+    <div style="text-align: center;">
+      <br><a href="#" class="clickable-link">Back to top</a>
     </div>
   </div>
 

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Add Assigned Subject{% endblock title %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subject/edit_add_subjects.css') }}">
+{% endblock %}
+
+{% block navbar %}{% endblock navbar %}
+
+{% block content %}
+  <div class="container">
+    <div style="text-align: right;">
+      <a href="/" class="clickable-link">Close</a>
+    </div>
+    
+    <form method="POST" action="/add_subject">
+      <h2>Add New Subjects</h2>
+      <div class="form-group">
+        <input type="text" name="subject" placeholder="Subject Name" required />
+      </div>
+
+      <div class="form-group">
+        <label for="course_level">Course Level:</label>
+        <select name="course_level" id="course_level" required>
+          <option value="" disabled selected>Select Level</option>
+          {% for level in range(1, 7) %}
+            <option value="{{ level }}">{{ level }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <input type="text" name="section" placeholder="Section" required />
+      </div>
+
+      
+      <div class="form-group">
+        <label for="class_start_time">Class Start time:</label>
+        <input type="time" id="class_start_time" name="class_start_time" required>
+      </div>
+
+      <div class="form-group">
+        <label for="class_end_time">Class End time</label>
+        <input type="time" id="class_end_time" name="class_end_time" required>
+      </div>
+
+      <div class="form-group">
+        Duration time: <span id="duration_display">--:--</span>
+        <input type="hidden" id="class_duration_time" name="class_duration_time" required>
+      </div>
+
+      <button type="submit">Add Subject</button>
+    </form>
+    <hr><br>
+
+    <h2>Assigned Subjects</h2>
+
+    {% for year_level, subjects in grouped_subjects.items() %}
+      {% if subjects %}
+        <table>
+            <thead>
+              <tr>
+                <th>
+                  <strong>
+                    {% if year_level == '1' %}
+                      {{ year_level }}st Year
+                    {% elif year_level == '2' %}
+                      {{ year_level }}nd Year
+                    {% elif year_level == '3' %}
+                      {{ year_level }}rd Year
+                    {% else %}
+                      {{ year_level }}th Year
+                    {% endif %}
+                  </strong>
+                    <span>({{ subjects|length }} Subjects)</span>
+                </th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+              </tr>
+              <tr>
+                <th>Subject Code</th>
+                <th>Section</th>
+                <th>Class Time</th>
+                <th>Enrolled</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for subject in subjects %}
+                <tr>
+                  <td data-label="Subject Code">{{ subject.subject_code }}</td>
+                  <td data-label="Section">{{ subject.section }}</td>
+                  <td data-label="Class Time" class="class-time">
+                    {{ subject.class_start_time }} - {{ subject.class_end_time }}<br>
+                    Duration: {{ subject.class_duration_time_display }}
+                  </td>
+                  <td data-label="Enrolled">{{ subject.enrolled_count or 0 }}</td>
+                  <td data-label="Actions">
+                    <a href="/delete_subject/{{ subject.id }}" class="delete-link">Delete</a>
+                  </td>
+
+                </tr>
+              {% endfor %}
+            </tbody>
+
+        </table>
+      {% else %}
+        <p>No subjects for {{ year_level }}.</p>
+      {% endif %}
+    {% endfor %}
+
+    <div style="text-align: center;">
+      <br><a href="#" class="clickable-link">Back to top</a>
+    </div>
+    
+  </div>
+
+  <script>
+    const startTimeInput = document.getElementById('class_start_time');
+    const endTimeInput = document.getElementById('class_end_time');
+    const durationDisplay = document.getElementById('duration_display');
+    const durationInput = document.getElementById('class_duration_time');
+
+    function calculateDuration() {
+      const startTimeStr = startTimeInput.value;
+      const endTimeStr = endTimeInput.value;
+
+      if (startTimeStr && endTimeStr) {
+        const startDate = new Date(`2000-01-01T${startTimeStr}:00`);
+        const endDate = new Date(`2000-01-01T${endTimeStr}:00`);
+
+        if (endDate < startDate) {
+          endDate.setDate(endDate.getDate() + 1);
+        }
+
+        const durationMs = endDate - startDate;
+        const totalMinutes = Math.floor(durationMs / (1000 * 60));
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        const formattedDuration = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        const decimalDuration = (totalMinutes / 60).toFixed(2);  // e.g., 1.50
+
+        durationDisplay.textContent = formattedDuration;
+        durationInput.value = decimalDuration;
+      } else {
+        durationDisplay.textContent = "--:--";
+        durationInput.value = "";
+      }
+    }
+
+
+    startTimeInput.addEventListener('change', calculateDuration);
+    endTimeInput.addEventListener('change', calculateDuration);
+    document.addEventListener('DOMContentLoaded', calculateDuration);
+  </script>
+{% endblock %}

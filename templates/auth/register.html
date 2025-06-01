@@ -26,7 +26,6 @@
     <label for="password">Password*:</label>
     <input type="password" id="password" name="password" required />
 
-    <!-- Add fingerprint input here -->
     <label for="registered_fingerprint_ID">Fingerprint ID (Optional):</label>
     <input type="text" id="registered_fingerprint_ID" name="registered_fingerprint_ID" placeholder="Enter Fingerprint ID or leave blank" />
 
@@ -90,59 +89,56 @@
   }
 
   function updateURL(role) {
-      const url = new URL(window.location);
-      url.searchParams.set('role', role);
-      window.history.pushState({}, '', url);
+    const url = new URL(window.location);
+    url.searchParams.set('role', role);
+    window.history.pushState({}, '', url);
   }
 
   instructorBtn.addEventListener('click', () => {
-      resetButtons();
-      instructorBtn.classList.add('active');
-      registerForm.style.display = 'block';
-      instructorFields.style.display = 'block';
-      studentFields.style.display = 'none';
-      roleInput.value = 'instructor';
-      updateURL('instructor');
+    resetButtons();
+    instructorBtn.classList.add('active');
+    registerForm.style.display = 'block';
+    instructorFields.style.display = 'block';
+    studentFields.style.display = 'none';
+    roleInput.value = 'instructor';
+    updateURL('instructor');
 
-      // Set required fields
-      document.getElementById('employee_id').required = true;
-      ['first_name','middle_name','last_name','school_id','section','course_level','cor_link'].forEach(id => {
-          document.getElementById(id).required = false;
-      });
+    document.getElementById('employee_id').required = true;
+
+    ['first_name', 'middle_name', 'last_name', 'school_id', 'section', 'course_level', 'cor_link'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.required = false;
+    });
   });
 
   studentBtn.addEventListener('click', () => {
-  resetButtons();
-  studentBtn.classList.add('active');
-  registerForm.style.display = 'block';
-  instructorFields.style.display = 'none';
-  studentFields.style.display = 'block';
-  roleInput.value = 'student';
-  updateURL('student');
+    resetButtons();
+    studentBtn.classList.add('active');
+    registerForm.style.display = 'block';
+    instructorFields.style.display = 'none';
+    studentFields.style.display = 'block';
+    roleInput.value = 'student';
+    updateURL('student');
 
-  // Set required fields
-  document.getElementById('employee_id').required = false;
+    document.getElementById('employee_id').required = false;
 
-  // Required student fields (excluding middle_name)
-  ['first_name','last_name','school_id','section','course_level','cor_link'].forEach(id => {
-      document.getElementById(id).required = true;
+    ['first_name', 'last_name', 'school_id', 'section', 'course_level', 'cor_link'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.required = true;
+    });
+
+    const middleName = document.getElementById('middle_name');
+    if (middleName) middleName.required = false;
   });
 
-  // Make middle_name optional
-      document.getElementById('middle_name').required = false;
-  });
-
-  // On page load, check the role from the URL and trigger the correct button
   window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role');
-
     if (role === 'instructor') {
       instructorBtn.click();
     } else if (role === 'student') {
       studentBtn.click();
     }
   });
-
 </script>
 {% endblock %}

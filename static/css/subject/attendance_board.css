@@ -1,0 +1,131 @@
+/* Container */
+.container {
+  max-width: 960px;
+  margin: 30px auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Headings */
+h2 {
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+  color: #2c3e50;
+}
+
+h3 {
+  font-size: 1rem;
+  color: #555;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+/* Close Link */
+a.clickable-link {
+  text-decoration: none;
+  color: #3498db;
+  font-weight: bold;
+}
+
+a.clickable-link:hover {
+  text-decoration: underline;
+}
+
+/* Alert Message */
+.alert {
+  background-color: #fff8c4;
+  color: #665c00;
+  font-size: 0.95rem;
+  border: 1px solid #ffe58f;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+/* Finalize Button */
+#finalize-button {
+  background-color: #2c3e50;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+#finalize-button:disabled {
+  background-color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+/* Table Styles */
+.table-container {
+  overflow-x: auto;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.attendance-table th,
+.attendance-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+.attendance-table th {
+  background-color: #f4f6f8;
+  color: #333;
+  font-weight: bold;
+}
+
+/* Mark Styles */
+.mark-check {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.mark-late {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.mark-absent {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  h3 {
+    font-size: 0.9rem;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  #finalize-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+  }
+}

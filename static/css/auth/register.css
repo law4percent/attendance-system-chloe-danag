@@ -1,23 +1,21 @@
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f0f4f8;
-  margin: 0; padding: 30px;
-  display: flex; justify-content: center;
-}
+
+
 .container {
-  background: white;
-  width: 420px;
-  padding: 30px 40px;
-  border-radius: 8px;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-  box-sizing: border-box;
+  max-width: 500px;
+  margin: 40px auto;
+  background-color: #ffffff;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
 }
+
 h2 {
   text-align: center;
   margin-bottom: 20px;
   color: #333;
 }
 
+/* Toggle Buttons */
 .role-toggle {
   display: flex;
   justify-content: center;
@@ -25,74 +23,72 @@ h2 {
 }
 
 .role-button {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #007bff;
-  background-color: white;
-  color: #007bff;
+  background-color: #e0e0e0;
+  border: none;
+  padding: 10px 20px;
+  margin: 0 10px;
+  border-radius: 25px;
   cursor: pointer;
   font-weight: bold;
-  border-radius: 5px 5px 0 0;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s;
 }
 
 .role-button.active {
-  background-color: #007bff;
+  background-color: #007BFF;
   color: white;
 }
 
-label {
-  display: block;
-  margin: 15px 0 5px;
-  font-weight: 600;
-  color: #444;
+.role-button:hover {
+  background-color: #d4d4d4;
 }
 
-input, select {
+/* Form Styling */
+form label {
+  display: block;
+  margin-top: 15px;
+  color: #555;
+  font-weight: 500;
+}
+
+form input,
+form select {
   width: 100%;
   padding: 10px;
-  margin-bottom: 10px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
   box-sizing: border-box;
-  border: 1.5px solid #ccc;
-  border-radius: 5px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  font-size: 14px;
 }
 
-input:focus, select:focus {
-  border-color: #007bff;
-  outline: none;
-}
-
-button[type="submit"] {
+form button[type="submit"] {
   width: 100%;
   padding: 12px;
-  font-size: 1.1rem;
-  background-color: #007bff;
-  border: none;
-  border-radius: 6px;
+  margin-top: 20px;
+  background-color: #28a745;
   color: white;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
-  margin-top: 10px;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s;
 }
 
-button[type="submit"]:hover {
-  background-color: #0056b3;
+form button[type="submit"]:hover {
+  background-color: #218838;
 }
 
+/* Link Styling */
 .toggle-links {
   text-align: center;
-  margin-top: 15px;
-  font-size: 0.95rem;
+  margin-top: 20px;
 }
 
 .toggle-links a {
-  color: #007bff;
+  color: #007BFF;
   text-decoration: none;
-  margin: 0 10px;
-  font-weight: 600;
+  font-size: 14px;
 }
 
 .toggle-links a:hover {

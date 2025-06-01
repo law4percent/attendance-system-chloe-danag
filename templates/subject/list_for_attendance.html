@@ -1,34 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Attendance System{% endblock title %}
+{% block title %}Subejct Dashboard{% endblock title %}
 
 {% block head %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/instructor/subject_list_for_attendance.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/subject/list_for_attendance.css') }}">
 {% endblock %}
 
+
+{% block navbar %}
+    <div class="logo">Attendance System</div>
+    <nav>
+    <a href="{{ url_for('instructor_profile') }}">Edit profile</a>
+    <a href="/logout">Logout</a>
+    </nav>
+{% endblock navbar %}
+
+
 {% block content %}
+
     <div class="container">
-        <h2>Welcome, {{ instructor_email }}</h2>
-        <h2>Your Subjects</h2>
-        <nav>
-            <div class="button-container">
-                <a href="{{ url_for('edit_or_add_subjects') }}">
-                    <button>Edit/Add Subjects</button>
-                </a>
-            </div>
+        <h2>Welcome, Instructor!</h2>
+        <h3>Logged in as {{ instructor_email }}</h3>
+        <p>We're glad to have you on board.</p>
 
-            <div class="button-container">
-                <a href="{{ url_for('instructor_profile') }}">
-                    <button>Your profile</button>
-                </a>
-            </div>
-
-            <div class="button-container">
-                    <a href="/logout">
-                        <button>Logout</button>
-                    </a>
-            </div>
-        </nav>
        
 
         <table id="subjectsTable">
@@ -40,7 +34,11 @@
                     <th><input type="text" onkeyup="filterTable(3)" placeholder="Search Duration"></th>
                     <th><input type="text" onkeyup="filterTable(4)" placeholder="Search Students"></th>
                     <th></th>
-                    <th></th>
+                    <th>
+                        <a href="{{ url_for('edit_or_add_subjects') }}">
+                            <button class="styled-button">Edit/Add Subjects</button>
+                        </a>
+                    </th>
                 </tr>
                 <tr>
                     <th>Subject Info</th>
@@ -49,7 +47,7 @@
                     <th>Duration (hh:mm)</th>
                     <th>Enrolled Students</th>
                     <th>Action</th>
-                    <th>View Attendance</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -57,15 +55,16 @@
                 <tr>
                     <td data-label="Subject Info">
                         <strong>{{ subject.subject_code }}</strong> - {{ subject.course_level }}{{ subject.section }}<br>
-                        <span>
-                            <a href="{{ url_for('subject_students', subject_id=subject.id) }}">enrolled students</a> |
-                            <a href="{{ url_for('subject_requests', subject_id=subject.id) }}">pending request {% if subject.pending_count %}({{ subject.pending_count }}){% endif %}</a>
-                        </span>
                     </td>
                     <td data-label="Start Time">{{ subject.start_time }}</td>
                     <td data-label="End Time">{{ subject.end_time }}</td>
                     <td data-label="Duration">{{ subject.duration_time }}</td>
-                    <td data-label="No. of enrolled students">{{ subject.student_count }}</td>
+                    <td data-label="Enrolled students">
+                        <span>
+                            <a href="{{ url_for('subject_students', subject_id=subject.id) }}">View Enrolled {% if subject.student_count %}({{ subject.student_count }}){% endif %}</a> <br>
+                            <a href="{{ url_for('subject_requests', subject_id=subject.id) }}">View Requesting {% if subject.pending_count %}({{ subject.pending_count }}){% endif %}</a>
+                        </span>
+                    </td>
                     <td data-label="Action">
                         {% if subject.is_active_now %}
                             <a href="{{ url_for('subject_attendance_board', subject_id=subject.id) }}" class="btn">Take Attendance</a>
@@ -73,15 +72,20 @@
                             <button class="btn" disabled style="background-color: gray; cursor: not-allowed;" title="Not within class time">Take Attendance</button>
                         {% endif %}
                     </td>
-                    <td data-label="View Attendance">
-                        <a href="{{ url_for('view_subject_attendance', subject_id=subject.id) }}" class="btn" style="background-color: #2196F3;">View Attendance</a>
+                    <td>
+                        <a href="{{ url_for('view_subject_attendance', subject_id=subject.id) }}">View Attendance</a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-
     </div>
+    
+    <div style="text-align: center;">
+      <br><a href="#" class="clickable-link">Back to top</a>
+    </div>
+
+
 
     <script>
         function filterTable(colIndex) {

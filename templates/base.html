@@ -9,8 +9,23 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  <main>
+  <header class="site-header">
+    {% block navbar %}
+      <div class="logo">Attendance System</div>
+      <nav>
+      <a href="{{ url_for('about_page') }}">About</a>
+      </nav>
+    {% endblock navbar %}
+  </header>
+
+
+
+  <main class="main-content">
     {% block content %}{% endblock %}
   </main>
+
+  <footer class="site-footer">
+    <p>&copy; {{ now.year }} Attendance System</p>
+  </footer>
 </body>
 </html>

@@ -52,6 +52,14 @@ def get_student_time_in(student_id, subject_id):
     result = cur.fetchone()
     return result[0] if result else None
 
+@app.route('/about')
+def about_page():
+    return render_template('about_page.html')
+
+@app.context_processor
+def inject_now():
+    return {'now': datetime.utcnow()}
+
 @app.route('/')
 @role_required('instructor')
 def subject_for_attendance():
@@ -103,12 +111,18 @@ def subject_for_attendance():
         else:
             subject['duration_time'] = 'N/A'
 
-        # Check if now is between class_start_time and class_end_time
         start = (datetime.min + subject['class_start_time']).time()
         end = (datetime.min + subject['class_end_time']).time()
-        subject['is_active_now'] = start <= now <= end
 
-    return render_template('instructor/subject_list_for_attendance.html', subjects=subjects, instructor_email=instructor_email)
+        if start < end:
+            # Normal same-day schedule
+            subject['is_active_now'] = start <= now <= end
+        else:
+            # Overnight schedule (e.g., 21:00 to 03:00)
+            subject['is_active_now'] = now >= start or now <= end
+
+
+    return render_template('subject/list_for_attendance.html', subjects=subjects, instructor_email=instructor_email)
 
 @app.route('/attendance/<int:subject_id>')
 @role_required('instructor')
@@ -185,7 +199,7 @@ def subject_attendance_board(subject_id):
 
             fingerprint_used = attendance['fingerprint_used']
 
-        # Insert if record doesn't exist
+        # # Insert if record doesn't exist
         if not attendance:
             cur.execute("""
                 INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
@@ -205,10 +219,12 @@ def subject_attendance_board(subject_id):
 
 
     return render_template(
-            'instructor/subject_attendance_board.html', 
+            'subject/attendance_board.html', 
             subject=subject, 
             attendance_list=attendance_list,
-            end_time=subject['class_end_time']
+            end_time=subject['class_end_time'],
+            start_time=subject['class_start_time'],
+            date=today
         )
 
 @app.route('/finalize_attendance/<int:subject_id>', methods=['POST'])
@@ -262,31 +278,18 @@ def finalize_attendance(subject_id):
 
     mysql.connection.commit()
 
-    # Notify ESP32 to stop attendance (optional, based on availability)
     try:
         esp32_ip = f"http://{ESP32_IP}:5000/set_subject"
         payload = {'subject_id': subject_id, 'status': 'stop'}
         response = requests.post(esp32_ip, json=payload, timeout=3)
-
-        response.raise_for_status()  # Raise exception if HTTP status != 200
-
-    except requests.exceptions.Timeout:
-        print("ESP32 connection timed out.")
-        return jsonify({'error': 'ESP32 request timed out'}), 504
-
-    except requests.exceptions.ConnectionError:
-        print("ESP32 unreachable.")
-        return jsonify({'error': 'ESP32 not reachable'}), 502
-
-    except requests.exceptions.HTTPError as http_err:
-        print(f"ESP32 responded with HTTP error: {http_err}")
-        return jsonify({'error': 'ESP32 responded with error', 'details': str(http_err)}), 500
-
+        response.raise_for_status()
     except Exception as e:
-        print("ESP32 stop command failed:", e)
-        return jsonify({'error': 'Unexpected ESP32 communication error', 'details': str(e)}), 500
+        print("ESP32 communication failed:", e)
+        # Don't return error — just log it
 
+    # Still finalize attendance
     return jsonify({'message': 'Attendance finalized successfully'}), 200
+
 
 
 @app.route('/attendance/view/<int:subject_id>')
@@ -319,7 +322,7 @@ def view_subject_attendance(subject_id):
     attendance_records = cur.fetchall()
 
     return render_template(
-        'instructor/subject_view_attendance.html',
+        'subject/view_attendance.html',
         subject=subject,
         students=students,
         attendance_records=attendance_records
@@ -337,7 +340,7 @@ def fingerprint_log():
 
     cur = mysql.connection.cursor(DictCursor)
 
-    # 1. Match student by fingerprint
+    # Can you fetch only the students who are enrolled only on with subject_id
     cur.execute("""
         SELECT id FROM students WHERE 
             %s IN (fingerprint_id1, fingerprint_id2, fingerprint_id3)
@@ -545,7 +548,7 @@ def edit_or_add_subjects():
         grouped_subjects.setdefault(level, []).append(subject)
 
     return render_template(
-        'instructor/edit_add_subjects.html',
+        'subject/edit_add_subjects.html',
         grouped_subjects=grouped_subjects,
         instructor_email=instructor_email,
         subject_count=subject_count
@@ -569,7 +572,7 @@ def instructor_profile():
         mysql.connection.commit()
 
         flash("Profile updated successfully!")
-        return redirect('/edit-or-add-subject')
+        return redirect('/')   
 
     cur.execute("SELECT email, registered_fingerprint_ID FROM instructors WHERE employee_id = %s", (employee_id,))
     instructor = cur.fetchone()
@@ -662,7 +665,7 @@ def subject_students(subject_id):
     """, (subject_id,))
     pending_count = cur.fetchone()[0]
 
-    return render_template('instructor/subject_students.html',
+    return render_template('subject/enrolled_students.html',
                            subject=subject,
                            students=students,
                            subject_id=subject_id,
@@ -744,7 +747,7 @@ def subject_requests(subject_id):
         return "Subject not found", 404
 
 
-    return render_template('instructor/subject_requests.html', requests=requests, subject=subject, subject_id=subject_id)
+    return render_template('subject/enrollment_requests.html', requests=requests, subject=subject, subject_id=subject_id)
 
 @app.route('/update_request/<int:request_id>/<action>')
 def update_request(request_id, action):
@@ -856,7 +859,7 @@ def edit_student_profile():
         first_name = request.form['first_name']
         middle_name = request.form['middle_name']
         last_name = request.form['last_name']
-        school_id = request.form['school_id']
+        # school_id = request.form['school_id']
         section = request.form['section']
         course_level = request.form['course_level']
         cor_link = request.form['cor_link']
@@ -867,16 +870,15 @@ def edit_student_profile():
             SET first_name = %s,
                 middle_name = %s,
                 last_name = %s,
-                school_ID = %s,
                 section = %s,
                 course_level = %s,
                 COR_link = %s
             WHERE id = %s
-        """, (first_name, middle_name, last_name, school_id, section, course_level, cor_link, student_id))
+        """, (first_name, middle_name, last_name, section, course_level, cor_link, student_id))
         mysql.connection.commit()
 
         flash("Profile updated successfully!")
-        return redirect('/student_profile')
+        return redirect('/edit_student_profile')
 
     # GET method - fetch current student info
     cur.execute("SELECT first_name, middle_name, last_name, school_ID, section, course_level, COR_link, email FROM students WHERE id = %s", (student_id,))
@@ -885,4 +887,5 @@ def edit_student_profile():
     return render_template('student/edit_profile.html', student=student)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
