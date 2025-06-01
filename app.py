@@ -149,47 +149,57 @@ def subject_attendance_board(subject_id):
     for student in students:
         mark = 'absent'
         student_id = student['id']
-        student_time_in = get_student_time_in(student_id, subject_id)  # this is timedelta
 
-        if not student_time_in:
-            # this must only initialize and must execute once
-            cur.execute("""
-                    INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
-                """, (student_id, subject_id, student_time_in, today, mark))
+        # Get full attendance row for today
+        cur.execute("""
+            SELECT time_in, fingerprint_used 
+            FROM student_attendance 
+            WHERE student_id = %s AND subject_id = %s AND date = %s
+        """, (student_id, subject_id, today))
+        attendance = cur.fetchone()
 
-            mysql.connection.commit()
-        else:
-              # timedelta
-            student_time = student_time_in  # timedelta
+        time_in_str = 'N/A'
+        fingerprint_used = 'N/A'
 
-            # check if student arrived within 15 minutes of class start
-            if student_time <= class_start + timedelta(minutes=15):
+        if attendance and attendance['time_in']:
+            time_in_value = attendance['time_in']
+
+            if isinstance(time_in_value, timedelta):
+                total_seconds = int(time_in_value.total_seconds())
+                hours, remainder = divmod(total_seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                time_in_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            elif isinstance(time_in_value, time):
+                time_in_str = time_in_value.strftime('%H:%M:%S')
+            elif isinstance(time_in_value, datetime):
+                time_in_str = time_in_value.time().strftime('%H:%M:%S')
+
+            # Mark logic
+            if time_in_value <= class_start + timedelta(minutes=15):
                 mark = 'check'
             else:
                 mark = 'late'
 
-        # Convert time_in to string safely
-        if isinstance(student_time_in, timedelta):
-            total_seconds = int(student_time_in.total_seconds())
-            hours, remainder = divmod(total_seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            time_in_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        elif isinstance(student_time_in, time):
-            time_in_str = student_time_in.strftime('%H:%M:%S')
-        elif isinstance(student_time_in, datetime):
-            time_in_str = student_time_in.time().strftime('%H:%M:%S')
-        else:
-            time_in_str = 'N/A'
+            fingerprint_used = attendance['fingerprint_used']
+
+        # Insert if record doesn't exist
+        if not attendance:
+            cur.execute("""
+                INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
+                VALUES (%s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE time_in = VALUES(time_in), mark = VALUES(mark)
+            """, (student_id, subject_id, None, today, mark))
+            mysql.connection.commit()
 
         attendance_list.append({
             'last_name': student['last_name'],
             'first_name': student['first_name'],
             'middle_name': student['middle_name'],
             'time_in': time_in_str,
-            'mark': mark
+            'mark': mark,
+            'fingerprint_used': fingerprint_used
         })
+
 
     return render_template(
             'instructor/subject_attendance_board.html', 
@@ -277,26 +287,33 @@ def fingerprint_log():
 
     student_id = student['id']
 
-    # Check if already recorded
     cur.execute("""
         SELECT * FROM student_attendance
-        WHERE student_id = %s AND subject_id = %s AND date = %s
+        WHERE student_id = %s AND subject_id = %s AND DATE(date) = %s
     """, (student_id, subject_id, today))
     existing = cur.fetchone()
 
-    if existing:
-        return jsonify({'message': 'Already recorded'}), 200
-
-    # Record time_in
     now = datetime.now().time()
     mark = None  # Let your /finalize_attendance decide the mark
 
-    cur.execute("""
-        INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark, fingerprint_used)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (student_id, subject_id, now, today, mark, fingerprint_id))
-    mysql.connection.commit()
+    if existing:
+        if existing['time_in'] is not None:
+            return jsonify({'message': 'Already recorded'}), 200
+        else:
+            # Update existing record with new time_in
+            cur.execute("""
+                UPDATE student_attendance 
+                SET time_in = %s, fingerprint_used = %s 
+                WHERE student_id = %s AND subject_id = %s AND DATE(date) = %s
+            """, (now, fingerprint_id, student_id, subject_id, today))
+    else:
+        # Insert new attendance record
+        cur.execute("""
+            INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark, fingerprint_used)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (student_id, subject_id, now, today, mark, fingerprint_id))
 
+    mysql.connection.commit()
     return jsonify({'message': 'Attendance recorded'}), 200
 
 

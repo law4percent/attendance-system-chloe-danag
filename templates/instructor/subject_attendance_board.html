@@ -24,7 +24,7 @@
     ⚠️ <strong>Warning:</strong> This page is waiting for fingerprint data. Do not reload. Attendance will be recorded once a fingerprint is scanned.
   </div>
 
-  <form method="POST" action="{{ url_for('finalize_attendance', subject_id=subject.id) }}">
+  <form id="finalize-form" method="POST" action="{{ url_for('finalize_attendance', subject_id=subject.id) }}">
     <div class="table-container">
       <table class="attendance-table">
         <thead>
@@ -33,6 +33,7 @@
             <th>First Name</th>
             <th>Middle Name</th>
             <th>Time In</th>
+            <th>Fingerprint ID Used</th>
             <th>Marked</th>
           </tr>
         </thead>
@@ -43,6 +44,7 @@
             <td>{{ student.first_name }}</td>
             <td>{{ student.middle_name }}</td>
             <td>{{ student.time_in }}</td>
+            <td>{{ student.fingerprint_used }}</td>
             <td>
               {% if student.mark == 'check' %}
                 <span class="mark-check">✅ Present</span>
@@ -51,8 +53,6 @@
               {% else %}
                 <span class="mark-absent">❌ Absent</span>
               {% endif %}
-
-              <!-- Hidden inputs for backend -->
               <input type="hidden" name="mark_{{ student.id }}" value="{{ student.mark }}">
             </td>
           </tr>
@@ -62,12 +62,46 @@
     </div>
 
     <div style="margin-top: 1rem;">
-      <button type="submit">Finalize Attendance</button>
+      <button type="submit" id="finalize-button">✅ Finalize Attendance</button>
     </div>
   </form>
 
 
+
   <script>
+    const finalizeForm = document.getElementById("finalize-form");
+    const finalizeButton = document.getElementById("finalize-button");
+
+    finalizeForm.addEventListener("submit", function (e) {
+      e.preventDefault(); // prevent default form submit
+
+      if (!confirm("Are you sure you want to finalize attendance?")) return;
+
+      finalizeButton.disabled = true;
+      finalizeButton.textContent = "Finalizing...";
+
+      const formData = new FormData(finalizeForm);
+
+      fetch(finalizeForm.action, {
+        method: "POST",
+        body: formData
+      })
+      .then(response => {
+        if (!response.ok) throw new Error("Failed to finalize attendance.");
+        return response.json();
+      })
+      .then(data => {
+        console.log(data.message);
+        window.onbeforeunload = null; // remove unload warning
+        window.location.href = "{{ url_for('subject_for_attendance') }}";
+      })
+      .catch(error => {
+        alert("Error: " + error.message);
+        finalizeButton.disabled = false;
+        finalizeButton.textContent = "✅ Finalize Attendance";
+      });
+    });
+
     // Convert PHP-passed time to Date object (HH:MM:SS)
     const endTimeStr = "{{ end_time }}"; // passed from Flask
     const [endHour, endMin, endSec] = endTimeStr.split(":").map(Number);
