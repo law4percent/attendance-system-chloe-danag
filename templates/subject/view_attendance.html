@@ -22,14 +22,25 @@
 
 
         {% if subject %}
+            <!-- Filter Form -->
             <form method="get" action="{{ url_for('view_subject_attendance', subject_id=subject.id) }}" class="filter-form">
                 <label for="date_filter">Select Date:</label>
                 <input type="date" id="date_filter" name="date" value="{{ request.args.get('date', '') }}">
-                <button type="submit" class="btn blue-btn" onclick="event.preventDefault(); downloadExcel();">Download (.xlsx)</button>
+                
+                <!-- Filter Button -->
+                <button type="submit" class="btn blue-btn">🔍 Filter</button>
+
+                <!-- Clear Filter Link -->
                 {% if request.args.get('date') %}
-                    <a href="{{ url_for('view_subject_attendance', subject_id=subject.id) }}" class="btn gray-btn">Clear</a>
+                <a href="{{ url_for('view_subject_attendance', subject_id=subject.id) }}" class="btn gray-btn">❌ Clear</a>
                 {% endif %}
             </form>
+
+            <!-- Download Button (Separate) -->
+            <div class="download-section">
+                <button class="btn green-btn" onclick="downloadExcel()">⬇️ Download (.xlsx)</button>
+            </div>
+
         {% else %}
             <p>Subject not found.</p>
         {% endif %}
