@@ -141,7 +141,6 @@ def subject_attendance_board(subject_id):
         """, (subject_id,))
     students = cur.fetchall()
 
-    now = datetime.now().time()
     today = date.today()
     attendance_list = []
     class_start = subject['class_start_time']
@@ -271,14 +270,14 @@ def fingerprint_log():
     fingerprint_id = data.get('fingerprint_id')
     subject_id = data.get('subject_id')
     today = date.today()
+    now = datetime.now().time()
 
     cur = mysql.connection.cursor(DictCursor)
 
-    # Match student
+    # 1. Match student by fingerprint
     cur.execute("""
         SELECT id FROM students WHERE 
-            %s IN (fingerprint_id1, fingerprint_id2, 
-                   fingerprint_id3)
+            %s IN (fingerprint_id1, fingerprint_id2, fingerprint_id3)
     """, (fingerprint_id,))
     student = cur.fetchone()
 
@@ -287,27 +286,38 @@ def fingerprint_log():
 
     student_id = student['id']
 
+    # 2. Fetch class start time
+    # Get subject info
+    cur.execute("SELECT * FROM subjects WHERE id = %s", (subject_id,))
+    subject = cur.fetchone()
+
+    subject['start_time_str'] = timedelta_to_str(subject['class_start_time'])
+    class_start = subject['class_start_time']
+    now_delta = timedelta(hours=now.hour, minutes=now.minute, seconds=now.second)
+
+    # 3. Check existing attendance
     cur.execute("""
         SELECT * FROM student_attendance
         WHERE student_id = %s AND subject_id = %s AND DATE(date) = %s
     """, (student_id, subject_id, today))
     existing = cur.fetchone()
 
-    now = datetime.now().time()
-    mark = None  # Let your /finalize_attendance decide the mark
-
     if existing:
         if existing['time_in'] is not None:
             return jsonify({'message': 'Already recorded'}), 200
         else:
-            # Update existing record with new time_in
             cur.execute("""
                 UPDATE student_attendance 
                 SET time_in = %s, fingerprint_used = %s 
                 WHERE student_id = %s AND subject_id = %s AND DATE(date) = %s
             """, (now, fingerprint_id, student_id, subject_id, today))
     else:
-        # Insert new attendance record
+        # 4. Determine mark
+        if now_delta <= class_start + timedelta(minutes=15):
+            mark = 'check'
+        else:
+            mark = 'late'
+
         cur.execute("""
             INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark, fingerprint_used)
             VALUES (%s, %s, %s, %s, %s, %s)
