@@ -14,7 +14,11 @@
             <a href="{{ url_for('subject_for_attendance') }}" class="clickable-link">Close</a>
         </div>
 
-        <h2>Attendance Records - {{ subject.subject_code }}</h2>
+        <h2>Attendance Records</h2>
+        <span>
+            Subject: <strong>{{ subject.subject_code }}</strong>
+            Section: <strong>{{ subject.course_level }}{{ subject.section }}</strong>
+        </span>
         <table>
             <thead>
                 <tr>

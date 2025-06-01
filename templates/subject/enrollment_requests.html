@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Pending Enrollment Requests{% endblock title %}
+{% block title %}Enrollment Requests{% endblock title %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/subject/enrollment_requests.css') }}">
@@ -14,7 +14,11 @@
       <div style="text-align: right;">
         <a href="/" class="clickable-link">Close</a>
       </div>
-      <h2>Pending enrollment requests for {{ subject[0] }} - {{ subject[1] }}{{ subject[2] }}</h2>
+      <h2>Enrollment Requests</h2>
+      <span>
+          Subject: <strong>{{ subject[0] }}</strong>
+          Section: <strong>{{ subject[1] }}{{ subject[2] }}</strong>
+      </span>
 
       <table>
         <thead>
