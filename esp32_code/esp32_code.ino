@@ -34,7 +34,7 @@ void setup() {
   fpSerial.begin(57600, SERIAL_8N1, 16, 17);  // RX, TX for fingerprint
 
   connectToWiFi();
-  onServer();
+  triggerRoute();
   server.begin();
 
   checkFingerprint();
@@ -139,7 +139,12 @@ void sendFingerprintToFlask(int fingerprint_id, int subject_id) {
     String response = http.getString();
     Serial.println("Response: " + response);
   } else {
-    Serial.println("Error on sending POST");
+    Serial.println("Error on sending POST... retrying...");
+    int retries = 3;
+    while (httpResponseCode <= 0 && retries-- > 0) {
+        delay(1000);
+        httpResponseCode = http.POST(postData);
+    }
   }
 
   http.end();
@@ -161,7 +166,7 @@ void checkFingerprintTemplate() {
   Serial.println(" templates");
 }
 
-void onServer() {
+void triggerRoute() {
   server.on("/set_subject", HTTP_POST, []() {
     if (server.hasArg("plain")) {
       String body = server.arg("plain");

@@ -242,7 +242,7 @@ def finalize_attendance(subject_id):
     mysql.connection.commit()
     
     try:        
-        esp32_ip = "http://<ESP32_IP>:5000/set_subject"
+        esp32_ip = f"http://{ESP32_IP}:5000/set_subject"
         payload = {'subject_id': subject_id, 'status': 'stop'}
         response = requests.post(esp32_ip, json=payload)
         if response.status_code != 200:
@@ -267,9 +267,8 @@ def fingerprint_log():
     # Match student
     cur.execute("""
         SELECT id FROM students WHERE 
-            %s IN (registered_fingerprint_1, registered_fingerprint_2, 
-                   registered_fingerprint_3, registered_fingerprint_4, 
-                   registered_fingerprint_5)
+            %s IN (fingerprint_id1, fingerprint_id2, 
+                   fingerprint_id3)
     """, (fingerprint_id,))
     student = cur.fetchone()
 
@@ -293,9 +292,9 @@ def fingerprint_log():
     mark = None  # Let your /finalize_attendance decide the mark
 
     cur.execute("""
-        INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (student_id, subject_id, now, today, mark))
+        INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark, fingerprint_used)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (student_id, subject_id, now, today, mark, fingerprint_id))
     mysql.connection.commit()
 
     return jsonify({'message': 'Attendance recorded'}), 200
