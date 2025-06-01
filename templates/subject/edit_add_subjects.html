@@ -82,7 +82,7 @@
               </tr>
               <tr>
                 <th>Subject Code</th>
-                <th>Section</th>
+                <th>Year & Section</th>
                 <th>Class Time</th>
                 <th>Enrolled</th>
                 <th>Actions</th>
@@ -92,7 +92,7 @@
               {% for subject in subjects %}
                 <tr>
                   <td data-label="Subject Code">{{ subject.subject_code }}</td>
-                  <td data-label="Section">{{ subject.section }}</td>
+                  <td data-label="Year & Section">{{ year_level }}{{ subject.section }}</td>
                   <td data-label="Class Time" class="class-time">
                     {{ subject.class_start_time }} - {{ subject.class_end_time }}<br>
                     Duration: {{ subject.class_duration_time_display }}

@@ -1,4 +1,7 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, jsonify
+from flask import Flask, render_template, request, redirect, session, flash, url_for, jsonify, abort
+from flask import send_file
+import pandas as pd
+import io
 from flask_mysqldb import MySQL
 from MySQLdb.cursors import DictCursor
 import config
@@ -291,7 +294,6 @@ def finalize_attendance(subject_id):
     return jsonify({'message': 'Attendance finalized successfully'}), 200
 
 
-
 @app.route('/attendance/view/<int:subject_id>')
 @role_required('instructor')
 def view_subject_attendance(subject_id):
@@ -301,7 +303,10 @@ def view_subject_attendance(subject_id):
     cur.execute("SELECT * FROM subjects WHERE id = %s", (subject_id,))
     subject = cur.fetchone()
 
-    # Get list of enrolled students
+    if subject is None:
+        abort(404)
+
+    # Optional: still fetch students if needed
     cur.execute("""
         SELECT s.id, s.first_name, s.middle_name, s.last_name
         FROM students s
@@ -310,15 +315,28 @@ def view_subject_attendance(subject_id):
     """, (subject_id,))
     students = cur.fetchall()
 
-    # Get attendance records
-    cur.execute("""
-        SELECT sa.student_id, sa.date, sa.time_in, sa.mark, sa.fingerprint_used,
-               s.first_name, s.middle_name, s.last_name
-        FROM student_attendance sa
-        JOIN students s ON sa.student_id = s.id
-        WHERE sa.subject_id = %s
-        ORDER BY sa.date DESC, sa.time_in ASC
-    """, (subject_id,))
+    # Get selected date from URL query (GET param)
+    selected_date = request.args.get('date')
+
+    if selected_date:
+        cur.execute("""
+            SELECT sa.student_id, sa.date, sa.time_in, sa.mark, sa.fingerprint_used,
+                   s.first_name, s.middle_name, s.last_name
+            FROM student_attendance sa
+            JOIN students s ON sa.student_id = s.id
+            WHERE sa.subject_id = %s AND sa.date = %s
+            ORDER BY sa.time_in ASC
+        """, (subject_id, selected_date))
+    else:
+        cur.execute("""
+            SELECT sa.student_id, sa.date, sa.time_in, sa.mark, sa.fingerprint_used,
+                   s.first_name, s.middle_name, s.last_name
+            FROM student_attendance sa
+            JOIN students s ON sa.student_id = s.id
+            WHERE sa.subject_id = %s
+            ORDER BY sa.date DESC, sa.time_in ASC
+        """, (subject_id,))
+    
     attendance_records = cur.fetchall()
 
     return render_template(
@@ -328,6 +346,65 @@ def view_subject_attendance(subject_id):
         attendance_records=attendance_records
     )
 
+
+@app.route('/attendance/download/<int:subject_id>')
+@role_required('instructor')
+def download_attendance_excel(subject_id):
+    date_filter = request.args.get('date')
+    cur = mysql.connection.cursor(DictCursor)
+
+    cur.execute("SELECT * FROM subjects WHERE id = %s", (subject_id,))
+    subject = cur.fetchone()
+    if subject is None:
+        abort(404)
+
+    if date_filter:
+        cur.execute("""
+            SELECT sa.date, sa.time_in, sa.mark, sa.fingerprint_used,
+                   s.last_name, s.first_name, s.middle_name
+            FROM student_attendance sa
+            JOIN students s ON sa.student_id = s.id
+            WHERE sa.subject_id = %s AND sa.date = %s
+            ORDER BY sa.time_in ASC
+        """, (subject_id, date_filter))
+    else:
+        cur.execute("""
+            SELECT sa.date, sa.time_in, sa.mark, sa.fingerprint_used,
+                   s.last_name, s.first_name, s.middle_name
+            FROM student_attendance sa
+            JOIN students s ON sa.student_id = s.id
+            WHERE sa.subject_id = %s
+            ORDER BY sa.date DESC, sa.time_in ASC
+        """, (subject_id,))
+
+    records = cur.fetchall()
+    if not records:
+        return "No records found for export.", 404
+
+    df = pd.DataFrame(records)
+    df.sort_values(by=['last_name', 'first_name'], inplace=True)
+    df['Student Name'] = df['last_name'] + ', ' + df['first_name'] + ' ' + df['middle_name']
+    df = df[['Student Name', 'time_in', 'date', 'fingerprint_used', 'mark']]
+    df.rename(columns={
+        'time_in': 'Time In',
+        'date': 'Date',
+        'fingerprint_used': 'Fingerprint Used',
+        'mark': 'Mark'
+    }, inplace=True)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Attendance')
+
+    output.seek(0)
+
+    filename = f"attendance_{subject['subject_code']}_{subject['course_level']}{subject['section']}_{date_filter or 'all'}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 
 @app.route('/api/fingerprint_log', methods=['POST'])

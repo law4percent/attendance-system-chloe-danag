@@ -15,10 +15,25 @@
         </div>
 
         <h2>Attendance Records</h2>
-        <span>
-            Subject: <strong>{{ subject.subject_code }}</strong>
-            Section: <strong>{{ subject.course_level }}{{ subject.section }}</strong>
-        </span>
+        <div class="subject-info">
+            <p><strong>Subject:</strong> {{ subject.subject_code }}</p>
+            <p><strong>Section:</strong> {{ subject.course_level }}{{ subject.section }}</p>
+        </div>
+
+
+        {% if subject %}
+            <form method="get" action="{{ url_for('view_subject_attendance', subject_id=subject.id) }}" class="filter-form">
+                <label for="date_filter">Select Date:</label>
+                <input type="date" id="date_filter" name="date" value="{{ request.args.get('date', '') }}">
+                <button type="submit" class="btn blue-btn" onclick="event.preventDefault(); downloadExcel();">Download (.xlsx)</button>
+                {% if request.args.get('date') %}
+                    <a href="{{ url_for('view_subject_attendance', subject_id=subject.id) }}" class="btn gray-btn">Clear</a>
+                {% endif %}
+            </form>
+        {% else %}
+            <p>Subject not found.</p>
+        {% endif %}
+
         <table>
             <thead>
                 <tr>
@@ -48,7 +63,7 @@
                 </tr>
                 {% else %}
                     <tr>
-                    <td colspan="5" style="font-style: italic; color: #666;">No enrolled students or records yet.</td>
+                        <td colspan="5" class="no-records">No enrolled students or records yet.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -58,4 +73,15 @@
             <br><a href="#" class="clickable-link">Back to top</a>
         </div>
     </div>
+
+    <script>
+        function downloadExcel() {
+            const selectedDate = document.getElementById('date_filter').value;
+            const url = selectedDate 
+                ? `{{ url_for('download_attendance_excel', subject_id=subject.id) }}?date=${selectedDate}` 
+                : `{{ url_for('download_attendance_excel', subject_id=subject.id) }}`;
+            window.location.href = url;
+        }
+    </script>
+
 {% endblock %}

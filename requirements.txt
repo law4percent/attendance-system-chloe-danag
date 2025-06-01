@@ -1,4 +1,6 @@
 flask
 flask-mysqldb
-werkzeug
+# werkzeug 
 requests
+openpyxl
+pandas

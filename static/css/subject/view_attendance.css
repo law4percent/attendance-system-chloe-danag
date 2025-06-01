@@ -54,6 +54,21 @@ tr:hover {
     background-color: #f9f9f9;
 }
 
+th {
+    background-color: #f7f7f7;
+    font-weight: 600;
+    color: #555;
+}
+
+td {
+    font-size: 15px;
+    color: #333;
+}
+
+td:first-child {
+    font-weight: bold;
+}
+
 /* Responsive tweaks */
 @media (max-width: 768px) {
     .container {
@@ -89,6 +104,18 @@ tr:hover {
         text-align: left;
         font-weight: bold;
     }
+
+    .filter-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .filter-form input,
+    .filter-form button,
+    .filter-form a {
+        width: 100%;
+    }
 }
 
 
@@ -106,4 +133,36 @@ tr:hover {
 .clickable-link:hover {
   background-color: #ecf0f1;
   text-decoration: underline;
+}
+
+/* New button color variations */
+.blue-btn {
+    background-color: #3498db;
+}
+
+.blue-btn:hover {
+    background-color: #2980b9;
+}
+
+.gray-btn {
+    background-color: #bdc3c7;
+    color: #333;
+}
+
+.gray-btn:hover {
+    background-color: #95a5a6;
+}
+
+.subject-info {
+    margin-top: 10px;
+    font-size: 16px;
+    color: #444;
+    line-height: 1.4;
+}
+
+.no-records {
+    text-align: center;
+    font-style: italic;
+    color: #999;
+    padding: 15px 0;
 }
