@@ -31,43 +31,37 @@
         </nav>
        
 
-        <!-- Search Inputs -->
         <table id="subjectsTable">
             <thead>
                 <tr class="search-inputs">
-                    <th><input type="text" onkeyup="filterTable(0)" placeholder="Search Subject Code"></th>
-                    <th><input type="text" onkeyup="filterTable(1)" placeholder="Search Course Level"></th>
-                    <th><input type="text" onkeyup="filterTable(2)" placeholder="Search Section"></th>
-                    <th><input type="text" onkeyup="filterTable(3)" placeholder="Search Start Time"></th>
-                    <th><input type="text" onkeyup="filterTable(4)" placeholder="Search End Time"></th>
-                    <th><input type="text" onkeyup="filterTable(5)" placeholder="Search Duration"></th>
-                    <th><input type="text" onkeyup="filterTable(6)" placeholder="Search Students"></th>
+                    <th><input type="text" onkeyup="filterTable(0)" placeholder="Search Subject Info"></th>
+                    <th><input type="text" onkeyup="filterTable(1)" placeholder="Search Start Time"></th>
+                    <th><input type="text" onkeyup="filterTable(2)" placeholder="Search End Time"></th>
+                    <th><input type="text" onkeyup="filterTable(3)" placeholder="Search Duration"></th>
+                    <th><input type="text" onkeyup="filterTable(4)" placeholder="Search Students"></th>
+                    <th></th>
                     <th></th>
                 </tr>
                 <tr>
-                    <th>Subject Code</th>
-                    <th>Year Level</th>
-                    <th>Section</th>
+                    <th>Subject Info</th>
                     <th>Start Time (hh:mm)</th>
                     <th>End Time (hh:mm)</th>
                     <th>Duration (hh:mm)</th>
                     <th>Enrolled Students</th>
                     <th>Action</th>
+                    <th>View Attendance</th>
                 </tr>
             </thead>
             <tbody>
                 {% for subject in subjects %}
                 <tr>
-                    <td data-label="Subject Code">
-                        {{ subject.subject_code }} <br>
+                    <td data-label="Subject Info">
+                        <strong>{{ subject.subject_code }}</strong> - {{ subject.course_level }}{{ subject.section }}<br>
                         <span>
                             <a href="{{ url_for('subject_students', subject_id=subject.id) }}">enrolled students</a> |
                             <a href="{{ url_for('subject_requests', subject_id=subject.id) }}">pending request {% if subject.pending_count %}({{ subject.pending_count }}){% endif %}</a>
                         </span>
                     </td>
-
-                    <td data-label="Course Level">{{ subject.course_level }}</td>
-                    <td data-label="Section">{{ subject.section }}</td>
                     <td data-label="Start Time">{{ subject.start_time }}</td>
                     <td data-label="End Time">{{ subject.end_time }}</td>
                     <td data-label="Duration">{{ subject.duration_time }}</td>
@@ -79,11 +73,14 @@
                             <button class="btn" disabled style="background-color: gray; cursor: not-allowed;" title="Not within class time">Take Attendance</button>
                         {% endif %}
                     </td>
-
+                    <td data-label="View Attendance">
+                        <a href="{{ url_for('view_subject_attendance', subject_id=subject.id) }}" class="btn" style="background-color: #2196F3;">View Attendance</a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+
     </div>
 
     <script>

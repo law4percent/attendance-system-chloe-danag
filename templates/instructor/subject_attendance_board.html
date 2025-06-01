@@ -29,9 +29,7 @@
       <table class="attendance-table">
         <thead>
           <tr>
-            <th>Last Name</th>
-            <th>First Name</th>
-            <th>Middle Name</th>
+            <th>Student Name</th>
             <th>Time In</th>
             <th>Fingerprint ID Used</th>
             <th>Marked</th>
@@ -40,9 +38,7 @@
         <tbody id="attendance-body">
           {% for student in attendance_list %}
           <tr>
-            <td>{{ student.last_name }}</td>
-            <td>{{ student.first_name }}</td>
-            <td>{{ student.middle_name }}</td>
+            <td>{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</td>
             <td>{{ student.time_in }}</td>
             <td>{{ student.fingerprint_used }}</td>
             <td>
@@ -59,6 +55,7 @@
           {% endfor %}
         </tbody>
       </table>
+
     </div>
 
     <div style="margin-top: 1rem;">

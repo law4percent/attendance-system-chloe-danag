@@ -289,6 +289,44 @@ def finalize_attendance(subject_id):
     return jsonify({'message': 'Attendance finalized successfully'}), 200
 
 
+@app.route('/attendance/view/<int:subject_id>')
+@role_required('instructor')
+def view_subject_attendance(subject_id):
+    cur = mysql.connection.cursor(DictCursor)
+
+    # Get subject info
+    cur.execute("SELECT * FROM subjects WHERE id = %s", (subject_id,))
+    subject = cur.fetchone()
+
+    # Get list of enrolled students
+    cur.execute("""
+        SELECT s.id, s.first_name, s.middle_name, s.last_name
+        FROM students s
+        JOIN student_subject_requests r ON s.id = r.student_id
+        WHERE r.subject_id = %s AND r.status = 'accepted'
+    """, (subject_id,))
+    students = cur.fetchall()
+
+    # Get attendance records
+    cur.execute("""
+        SELECT sa.student_id, sa.date, sa.time_in, sa.mark, sa.fingerprint_used,
+               s.first_name, s.middle_name, s.last_name
+        FROM student_attendance sa
+        JOIN students s ON sa.student_id = s.id
+        WHERE sa.subject_id = %s
+        ORDER BY sa.date DESC, sa.time_in ASC
+    """, (subject_id,))
+    attendance_records = cur.fetchall()
+
+    return render_template(
+        'instructor/subject_view_attendance.html',
+        subject=subject,
+        students=students,
+        attendance_records=attendance_records
+    )
+
+
+
 @app.route('/api/fingerprint_log', methods=['POST'])
 def fingerprint_log():
     data = request.get_json()
