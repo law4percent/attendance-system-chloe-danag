@@ -546,7 +546,7 @@ def register():
                 INSERT INTO students (
                     first_name, middle_name, last_name, school_ID,
                     section, course_level, email, password, COR_link,
-                    registered_fingerprint_ID
+                    fingerprint_id1
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (

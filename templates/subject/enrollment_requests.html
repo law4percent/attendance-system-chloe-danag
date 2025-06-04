@@ -28,6 +28,7 @@
             <th>Middle Name</th>
             <th>School ID</th>
             <th>COR Link</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -36,7 +37,8 @@
               <td data-label="Last Name">{{ req[1] }}</td>
               <td data-label="First Name">{{ req[2] }}</td>
               <td data-label="Middle Name">{{ req[3] or 'N/A' }}</td>
-              <td data-label="COR Link"><a href="{{ req[4] }}" target="_blank" rel="noopener noreferrer">View COR</a></td>
+              <td data-label="School ID">{{ req[4] }}</td>
+              <td data-label="COR Link"><a href="{{ req[5] }}" target="_blank" rel="noopener noreferrer">View COR</a></td>
               <td data-label="Action">
                 <span>
                   <a href="{{ url_for('update_request', request_id=req[0], action='accept') }}" class="action-link accept">Accept</a>
