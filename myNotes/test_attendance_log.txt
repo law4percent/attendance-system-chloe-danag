@@ -1,5 +1,16 @@
 # Copy and paste in Windows Command Prompt
 
+
+🔄  Trigger Scanning
+
+curl -X POST http://<ESP32_IP>:5000/set_subject \
+  -H "Content-Type: application/json" \
+  -d "{\"subject_id\": 38, \"status\": \"start\"}"
+
+
+
+🧪 Testing
+
 curl -X POST http://127.0.0.1:5000/api/fingerprint_log ^
 -H "Content-Type: application/json" ^
 -d "{\"fingerprint_id\": 123, \"subject_id\": 38}"
