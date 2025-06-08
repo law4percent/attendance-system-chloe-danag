@@ -497,7 +497,7 @@ def login():
             flash("Invalid email or password (user not found)")
             return redirect(f'/login?role={role}')
 
-        if user['password'] == password or True:  # Replace 'or True' with actual password check in prod
+        if user['password'] == password: # or True:  # Replace 'or True' with actual password check in prod
             # Store identifiers and email in session
             if role == 'instructor':
                 session['user'] = user['employee_ID']  # Use employee_ID for instructors

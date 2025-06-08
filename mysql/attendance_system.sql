@@ -26,8 +26,6 @@ CREATE TABLE `instructors` (
   `employee_ID` int NOT NULL,
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `registered_fingerprint_ID` varchar(100) DEFAULT NULL,
-  `timestamp` datetime DEFAULT NULL,
   PRIMARY KEY (`employee_ID`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -39,7 +37,7 @@ CREATE TABLE `instructors` (
 
 LOCK TABLES `instructors` WRITE;
 /*!40000 ALTER TABLE `instructors` DISABLE KEYS */;
-INSERT INTO `instructors` VALUES (4201400,'lawrence7roble@gmail.com','CTU4201400roble','asf',NULL),(4201402,'ken.gorro@gmail.com','ken.gorro',NULL,NULL);
+INSERT INTO `instructors` VALUES (4201401,'danag.chloe@ctu.edu.ph','12');
 /*!40000 ALTER TABLE `instructors` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -63,7 +61,7 @@ CREATE TABLE `student_attendance` (
   KEY `subject_id` (`subject_id`),
   CONSTRAINT `student_attendance_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
   CONSTRAINT `student_attendance_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1810 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1812 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -72,7 +70,6 @@ CREATE TABLE `student_attendance` (
 
 LOCK TABLES `student_attendance` WRITE;
 /*!40000 ALTER TABLE `student_attendance` DISABLE KEYS */;
-INSERT INTO `student_attendance` VALUES (1808,6,89,NULL,'2025-06-02','absent',NULL),(1809,4,89,NULL,'2025-06-02','absent',NULL);
 /*!40000 ALTER TABLE `student_attendance` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -94,7 +91,7 @@ CREATE TABLE `student_subject_requests` (
   KEY `subject_id` (`subject_id`),
   CONSTRAINT `student_subject_requests_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
   CONSTRAINT `student_subject_requests_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=202 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -103,7 +100,7 @@ CREATE TABLE `student_subject_requests` (
 
 LOCK TABLES `student_subject_requests` WRITE;
 /*!40000 ALTER TABLE `student_subject_requests` DISABLE KEYS */;
-INSERT INTO `student_subject_requests` VALUES (195,1,81,'pending','2025-06-01 20:04:20'),(197,6,88,'accepted','2025-06-01 20:43:51'),(198,1,88,'accepted','2025-06-01 20:44:04'),(199,4,88,'accepted','2025-06-01 20:44:17'),(200,6,89,'accepted','2025-06-01 20:45:06'),(201,4,89,'accepted','2025-06-01 20:45:16');
+INSERT INTO `student_subject_requests` VALUES (210,12,95,'pending','2025-06-08 20:00:00');
 /*!40000 ALTER TABLE `student_subject_requests` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -123,7 +120,7 @@ CREATE TABLE `student_subjects` (
   KEY `subject_id` (`subject_id`),
   CONSTRAINT `student_subjects_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
   CONSTRAINT `student_subjects_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=130 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=137 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -132,7 +129,6 @@ CREATE TABLE `student_subjects` (
 
 LOCK TABLES `student_subjects` WRITE;
 /*!40000 ALTER TABLE `student_subjects` DISABLE KEYS */;
-INSERT INTO `student_subjects` VALUES (125,6,88),(126,1,88),(127,4,88),(128,6,89),(129,4,89);
 /*!40000 ALTER TABLE `student_subjects` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -156,15 +152,11 @@ CREATE TABLE `students` (
   `COR_link` varchar(255) DEFAULT NULL,
   `RFID` varchar(100) DEFAULT NULL,
   `fingerprint_id1` varchar(512) DEFAULT NULL,
-  `fingerprint_id2` varchar(512) DEFAULT NULL,
-  `fingerprint_id3` varchar(512) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `school_ID` (`school_ID`),
   UNIQUE KEY `email` (`email`),
-  UNIQUE KEY `fingerprint_id1` (`fingerprint_id1`),
-  UNIQUE KEY `fingerprint_id2` (`fingerprint_id2`),
-  UNIQUE KEY `fingerprint_id3` (`fingerprint_id3`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `fingerprint_id1` (`fingerprint_id1`)
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -173,7 +165,7 @@ CREATE TABLE `students` (
 
 LOCK TABLES `students` WRITE;
 /*!40000 ALTER TABLE `students` DISABLE KEYS */;
-INSERT INTO `students` VALUES (1,'Lawrence','','Roble','B','3','4201401','roble.lawrence@ctu.edu.ph','roble.lawrence','http://335345636cxc',NULL,'123','321','213'),(3,'Remalyn','','Abao','C','3','4201402','abao.remalyn@ctu.edu.ph','abao.remalyn','',NULL,'002','000','001'),(4,'Chloe','','Danag','D','4','4201403','danag.chloe@ctu.edu.ph','danag.chole','http://335345636cxcfsd',NULL,NULL,NULL,NULL),(5,'Leah',NULL,'Roble','A','1','4201404','roble.leah@ctu.edu.ph','roble.leah','http://335345636cxcasfd',NULL,NULL,NULL,NULL),(6,'Haziel','','Rojoca','D','3','4201405','rojoca.haziel@ctu.edu.ph','rojoca.haziel','https://drive.google.com/file/d/162VKd8Ni7XITm2orM6ECliPFTF3IKYFE/view?usp=sharing',NULL,NULL,NULL,NULL);
+INSERT INTO `students` VALUES (12,'Chloe','','Danag','D','3','4201401','chloe.danag@gmail.com','123','https://mail.google.com/mail/?authuser=0&ogbl',NULL,'123');
 /*!40000 ALTER TABLE `students` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -196,7 +188,7 @@ CREATE TABLE `subjects` (
   PRIMARY KEY (`id`),
   KEY `instructor_id` (`instructor_id`),
   CONSTRAINT `subjects_ibfk_1` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`employee_ID`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=90 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -205,13 +197,9 @@ CREATE TABLE `subjects` (
 
 LOCK TABLES `subjects` WRITE;
 /*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
-INSERT INTO `subjects` VALUES (81,'Math','3','D','03:33:00','05:33:00',2.00,4201402),(88,'Programming','2','D','04:00:00','04:30:00',0.50,4201400),(89,'Embedded System','3','B','04:44:00','04:50:00',0.10,4201400);
+INSERT INTO `subjects` VALUES (81,'Math','3','D','03:33:00','05:33:00',2.00,NULL),(88,'Programming','2','D','04:00:00','04:30:00',0.50,NULL),(90,'CT101','2','D','18:42:00','18:44:00',0.03,NULL),(95,'Embedded System','3','D','07:00:00','10:00:00',3.00,4201401);
 /*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Dumping routines for database 'attendance_system'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -222,4 +210,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-06-02  6:31:08
+-- Dump completed on 2025-06-09  4:02:38
