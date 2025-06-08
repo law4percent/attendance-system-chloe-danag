@@ -422,7 +422,7 @@ def fingerprint_log():
     # Can you fetch only the students who are enrolled only on with subject_id
     cur.execute("""
         SELECT id FROM students WHERE 
-            %s IN (fingerprint_id1, fingerprint_id2, fingerprint_id3)
+            %s IN (fingerprint_id1)
     """, (fingerprint_id,))
     student = cur.fetchone()
 
@@ -986,8 +986,6 @@ def cancel_request(request_id):
     flash("Request cancelled.")
     return redirect('/student_profile')
 
-from werkzeug.security import check_password_hash, generate_password_hash
-
 @app.route('/edit_student_profile', methods=['GET', 'POST'])
 @role_required('student')
 def edit_student_profile():
@@ -1001,15 +999,15 @@ def edit_student_profile():
         section = request.form['section']
         course_level = request.form['course_level']
         cor_link = request.form['cor_link']
-        new_password = request.form.get('new_password', '').strip()
         old_password = request.form.get('old_password', '').strip()
+        new_password = request.form.get('new_password', '').strip()
         new_fingerprint_id = request.form.get('registered_fingerprint_ID', '').strip()
 
-        # Fetch current student data (password & fingerprint)
+        # Fetch current password and fingerprint
         cur.execute("SELECT password, fingerprint_id1 FROM students WHERE id = %s", (student_id,))
-        existing_data = cur.fetchone()
-        existing_fingerprint = existing_data.get('fingerprint_id1')
-        current_hashed_password = existing_data.get('password')
+        student_data = cur.fetchone()
+        current_password = student_data.get('password')
+        existing_fingerprint = student_data.get('fingerprint_id1')
 
         # Handle fingerprint logic
         if not existing_fingerprint and new_fingerprint_id:
@@ -1017,9 +1015,10 @@ def edit_student_profile():
             if cur.fetchone():
                 flash("Fingerprint ID already exists.", "danger")
                 return redirect('/edit_student_profile')
+
             cur.execute("UPDATE students SET fingerprint_id1 = %s WHERE id = %s", (new_fingerprint_id, student_id))
 
-        # Update basic profile info
+        # Update profile fields
         cur.execute("""
             UPDATE students
             SET first_name = %s,
@@ -1031,25 +1030,23 @@ def edit_student_profile():
             WHERE id = %s
         """, (first_name, middle_name, last_name, section, course_level, cor_link, student_id))
 
-        # Handle password change securely
+        # Update password if fields are filled
         if new_password:
             if not old_password:
-                flash("You must enter your old password to change to a new one.", "danger")
+                flash("Please enter your old password to set a new one.", "danger")
                 return redirect('/edit_student_profile')
 
-            if not check_password_hash(current_hashed_password, old_password):
+            if old_password != current_password:
                 flash("Old password is incorrect.", "danger")
                 return redirect('/edit_student_profile')
 
-            # Update with new hashed password
-            new_hashed_password = generate_password_hash(new_password)
-            cur.execute("UPDATE students SET password = %s WHERE id = %s", (new_hashed_password, student_id))
+            cur.execute("UPDATE students SET password = %s WHERE id = %s", (new_password, student_id))
 
         mysql.connection.commit()
         flash("Profile updated successfully!", "success")
         return redirect('/edit_student_profile')
 
-    # GET request – load current student profile
+    # GET: Load student data
     cur.execute("""
         SELECT first_name, middle_name, last_name, school_ID, section,
                course_level, COR_link, email, fingerprint_id1
