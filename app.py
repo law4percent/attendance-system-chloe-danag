@@ -4,7 +4,7 @@ import pandas as pd
 import io
 from flask_mysqldb import MySQL
 from MySQLdb.cursors import DictCursor
-import config
+import mysql.config as config
 from functools import wraps
 from collections import defaultdict
 from datetime import time, timedelta, date, datetime
