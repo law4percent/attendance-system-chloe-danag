@@ -20,22 +20,32 @@
 
     <form method="POST" action="/edit_instructor_profile">
       <label>Email (username)*:</label>
-      <input type="email" value="{{ instructor.email }}" disabled>
+      <input type="email" value="{{ instructor.email }}" disabled />
 
-      <label>Registered Fingerprint ID:</label>
-      <input type="text" name="registered_fingerprint_ID" value="{{ instructor.registered_fingerprint_ID or '' }}">
+      <hr />
+
+      <h3>Change Password</h3>
+
+      <label for="current_password">Current Password*:</label>
+      <input type="password" id="current_password" name="current_password" required />
+
+      <label for="new_password">New Password*:</label>
+      <input type="password" id="new_password" name="new_password" required />
+
+      <label for="confirm_new_password">Confirm New Password*:</label>
+      <input type="password" id="confirm_new_password" name="confirm_new_password" required />
 
       <button type="submit">Save Changes</button>
     </form>
 
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="message">
-          {% for message in messages %}
-            <p>{{ message }}</p>
+          {% for category, message in messages %}
+            <p class="alert alert-{{ category }}">{{ message }}</p>
           {% endfor %}
         </div>
       {% endif %}
     {% endwith %}
   </div>
-{% endblock content %}
+{% endblock %}

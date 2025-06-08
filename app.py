@@ -58,8 +58,8 @@ def get_student_time_in(student_id, subject_id):
     return result[0] if result else None
 
 @app.route('/about')
-def about_page():
-    return render_template('about_page.html')
+def about():
+    return render_template('about.html')
 
 @app.context_processor
 def inject_now():
@@ -520,19 +520,42 @@ def register():
     role = request.args.get('role', 'instructor')
 
     if request.method == 'POST':
-        email = request.form['email']
+        email = request.form['email'].strip().lower()  # normalize email
         password = request.form['password']
-        fingerprint_id = request.form.get('registered_fingerprint_ID') or None
 
         cur = mysql.connection.cursor()
 
+        # DEBUG: print role and email (remove in production)
+        print(f"Registering role={role} with email={email}")
+
+        # Check for duplicate email in students table
+        cur.execute("SELECT email FROM students WHERE email = %s", (email,))
+        if cur.fetchone():
+            flash("Email already exists in student records.", "danger")
+            return redirect(f'/register?role={role}')
+        
+        # Check for duplicate email in instructors table
+        cur.execute("SELECT email FROM instructors WHERE email = %s", (email,))
+        if cur.fetchone():
+            flash("Email already exists in instructor records.", "danger")
+            return redirect(f'/register?role={role}')
+
         if role == 'instructor':
             employee_id = request.form['employee_id']
+
+            # Check for duplicate employee_id
+            cur.execute("SELECT employee_id FROM instructors WHERE employee_id = %s", (employee_id,))
+            if cur.fetchone():
+                flash("Employee ID already exists.", "danger")
+                return redirect('/register?role=instructor')
+
+            # Insert instructor (no fingerprint)
             cur.execute("""
-                INSERT INTO instructors (employee_id, email, password, registered_fingerprint_ID)
-                VALUES (%s, %s, %s, %s)
-            """, (employee_id, email, password, fingerprint_id))
+                INSERT INTO instructors (employee_id, email, password)
+                VALUES (%s, %s, %s)
+            """, (employee_id, email, password))
             mysql.connection.commit()
+            flash("Instructor registered successfully!", "success")
             return redirect('/login?role=instructor')
 
         elif role == 'student':
@@ -542,8 +565,23 @@ def register():
             section = request.form['section']
             course_level = request.form['course_level']
             cor_link = request.form['cor_link']
-            middle_name = request.form['middle_name'].strip() or None
+            middle_name = request.form.get('middle_name', '').strip() or None
+            fingerprint_id = request.form.get('registered_fingerprint_ID') or None
 
+            # Check for duplicate school_ID
+            cur.execute("SELECT school_ID FROM students WHERE school_ID = %s", (school_id,))
+            if cur.fetchone():
+                flash("School ID already exists.", "danger")
+                return redirect('/register?role=student')
+
+            # Check for duplicate fingerprint ID only if provided
+            if fingerprint_id:
+                cur.execute("SELECT fingerprint_id1 FROM students WHERE fingerprint_id1 = %s", (fingerprint_id,))
+                if cur.fetchone():
+                    flash("Fingerprint ID already exists.", "danger")
+                    return redirect('/register?role=student')
+
+            # Insert student
             cur.execute("""
                 INSERT INTO students (
                     first_name, middle_name, last_name, school_ID,
@@ -556,11 +594,12 @@ def register():
                 section, course_level, email, password, cor_link,
                 fingerprint_id
             ))
-
             mysql.connection.commit()
+            flash("Student registered successfully!", "success")
             return redirect('/login?role=student')
 
     return render_template('auth/register.html', role=role)
+
 
 @app.route('/edit-or-add-subject')
 @role_required('instructor')
@@ -636,24 +675,43 @@ def edit_or_add_subjects():
 @app.route('/edit_instructor_profile', methods=['GET', 'POST'])
 @role_required('instructor')
 def instructor_profile():
-    employee_id = session['user']  # make sure this matches your session key
-    cur = mysql.connection.cursor(DictCursor)  # Use DictCursor for dict results
+    employee_id = session['user']
+    cur = mysql.connection.cursor(DictCursor)
 
     if request.method == 'POST':
-        fingerprint_id = request.form.get('registered_fingerprint_ID') or None
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_new_password = request.form.get('confirm_new_password')
 
-        # Update only the fingerprint ID; email is NOT changed here
+        # Get current password from DB
+        cur.execute("SELECT password FROM instructors WHERE employee_id = %s", (employee_id,))
+        instructor = cur.fetchone()
+
+        if not instructor:
+            flash("Instructor not found.", "danger")
+            return redirect('/edit_instructor_profile')
+
+        # Check current password match
+        if instructor['password'] != current_password:
+            flash("Current password is incorrect.", "danger")
+            return redirect('/edit_instructor_profile')
+
+        if new_password != confirm_new_password:
+            flash("New passwords do not match.", "danger")
+            return redirect('/edit_instructor_profile')
+
+        # Update password directly
         cur.execute("""
-            UPDATE instructors
-            SET registered_fingerprint_ID = %s
+            UPDATE instructors SET password = %s
             WHERE employee_id = %s
-        """, (fingerprint_id, employee_id))
+        """, (new_password, employee_id))
         mysql.connection.commit()
 
-        flash("Profile updated successfully!")
-        return redirect('/')   
+        flash("Profile updated successfully!", "success")
+        return redirect('/')
 
-    cur.execute("SELECT email, registered_fingerprint_ID FROM instructors WHERE employee_id = %s", (employee_id,))
+    # GET
+    cur.execute("SELECT email FROM instructors WHERE employee_id = %s", (employee_id,))
     instructor = cur.fetchone()
     return render_template('instructor/profile.html', instructor=instructor)
 
@@ -928,6 +986,8 @@ def cancel_request(request_id):
     flash("Request cancelled.")
     return redirect('/student_profile')
 
+from werkzeug.security import check_password_hash, generate_password_hash
+
 @app.route('/edit_student_profile', methods=['GET', 'POST'])
 @role_required('student')
 def edit_student_profile():
@@ -938,12 +998,28 @@ def edit_student_profile():
         first_name = request.form['first_name']
         middle_name = request.form['middle_name']
         last_name = request.form['last_name']
-        # school_id = request.form['school_id']
         section = request.form['section']
         course_level = request.form['course_level']
         cor_link = request.form['cor_link']
+        new_password = request.form.get('new_password', '').strip()
+        old_password = request.form.get('old_password', '').strip()
+        new_fingerprint_id = request.form.get('registered_fingerprint_ID', '').strip()
 
-        # Update student info
+        # Fetch current student data (password & fingerprint)
+        cur.execute("SELECT password, fingerprint_id1 FROM students WHERE id = %s", (student_id,))
+        existing_data = cur.fetchone()
+        existing_fingerprint = existing_data.get('fingerprint_id1')
+        current_hashed_password = existing_data.get('password')
+
+        # Handle fingerprint logic
+        if not existing_fingerprint and new_fingerprint_id:
+            cur.execute("SELECT id FROM students WHERE fingerprint_id1 = %s", (new_fingerprint_id,))
+            if cur.fetchone():
+                flash("Fingerprint ID already exists.", "danger")
+                return redirect('/edit_student_profile')
+            cur.execute("UPDATE students SET fingerprint_id1 = %s WHERE id = %s", (new_fingerprint_id, student_id))
+
+        # Update basic profile info
         cur.execute("""
             UPDATE students
             SET first_name = %s,
@@ -954,13 +1030,32 @@ def edit_student_profile():
                 COR_link = %s
             WHERE id = %s
         """, (first_name, middle_name, last_name, section, course_level, cor_link, student_id))
-        mysql.connection.commit()
 
-        flash("Profile updated successfully!")
+        # Handle password change securely
+        if new_password:
+            if not old_password:
+                flash("You must enter your old password to change to a new one.", "danger")
+                return redirect('/edit_student_profile')
+
+            if not check_password_hash(current_hashed_password, old_password):
+                flash("Old password is incorrect.", "danger")
+                return redirect('/edit_student_profile')
+
+            # Update with new hashed password
+            new_hashed_password = generate_password_hash(new_password)
+            cur.execute("UPDATE students SET password = %s WHERE id = %s", (new_hashed_password, student_id))
+
+        mysql.connection.commit()
+        flash("Profile updated successfully!", "success")
         return redirect('/edit_student_profile')
 
-    # GET method - fetch current student info
-    cur.execute("SELECT first_name, middle_name, last_name, school_ID, section, course_level, COR_link, email FROM students WHERE id = %s", (student_id,))
+    # GET request – load current student profile
+    cur.execute("""
+        SELECT first_name, middle_name, last_name, school_ID, section,
+               course_level, COR_link, email, fingerprint_id1
+        FROM students
+        WHERE id = %s
+    """, (student_id,))
     student = cur.fetchone()
 
     return render_template('student/edit_profile.html', student=student)

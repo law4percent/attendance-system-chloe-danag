@@ -94,3 +94,15 @@ form button[type="submit"]:hover {
 .toggle-links a:hover {
   text-decoration: underline;
 }
+
+
+#password-warning, #alert {
+  background-color: #ffe6e6;
+  border: 1px solid #ff4d4d;
+  color: #b30000;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 12px;
+}

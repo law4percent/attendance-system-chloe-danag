@@ -16,6 +16,15 @@
     <button class="role-button" id="student-btn">Student</button>
   </div>
 
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div id="alert" class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+
   <!-- Registration Form -->
   <form id="register-form" method="POST" enctype="multipart/form-data" style="display:none;">
     <input type="hidden" id="role-input" name="role" value="" />
@@ -26,31 +35,36 @@
     <label for="password">Password*:</label>
     <input type="password" id="password" name="password" required />
 
-    <label for="registered_fingerprint_ID">Fingerprint ID (Optional):</label>
-    <input type="text" id="registered_fingerprint_ID" name="registered_fingerprint_ID" placeholder="Enter Fingerprint ID or leave blank" />
+    <label for="confirm_password">Confirm Password*:</label>
+    <input type="password" id="confirm_password" name="confirm_password" required />
+
+    <p id="password-warning" style="display: none;">
+      🔒 Passwords do not match. Please try again.
+    </p>
+
 
     <!-- Instructor Fields -->
     <div id="instructor-fields" style="display:none;">
       <label for="employee_id">Employee ID*:</label>
-      <input type="text" id="employee_id" name="employee_id" />
+      <input type="number" id="employee_id" name="employee_id" required />
     </div>
 
     <!-- Student Fields -->
     <div id="student-fields" style="display:none;">
       <label for="first_name">First Name*:</label>
-      <input type="text" id="first_name" name="first_name" />
+      <input type="text" id="first_name" name="first_name" required/>
 
       <label for="middle_name">Middle Name:</label>
       <input type="text" id="middle_name" name="middle_name" />
 
       <label for="last_name">Last Name*:</label>
-      <input type="text" id="last_name" name="last_name" />
+      <input type="text" id="last_name" name="last_name" required/>
 
       <label for="school_id">School ID*:</label>
-      <input type="text" id="school_id" name="school_id" />
+      <input type="number" id="school_id" name="school_id" required/>
 
       <label for="section">Section*:</label>
-      <input type="text" id="section" name="section" />
+      <input type="text" id="section" name="section" required/>
 
       <label for="course_level">Year Level*:</label>
       <select id="course_level" name="course_level">
@@ -64,7 +78,10 @@
       </select>
 
       <label for="cor_link">COR PDF Link (Google Drive)*:</label>
-      <input type="url" id="cor_link" name="cor_link" placeholder="Paste Google Drive link here" />
+      <input type="url" id="cor_link" name="cor_link" placeholder="Paste Google Drive link here" required/>
+
+      <label for="registered_fingerprint_ID">Fingerprint ID (Optional):</label>
+      <input type="number" id="registered_fingerprint_ID" name="registered_fingerprint_ID" placeholder="Enter Fingerprint ID or leave blank" />
     </div>
 
     <button type="submit">Register</button>
@@ -140,5 +157,20 @@
       studentBtn.click();
     }
   });
+
+  registerForm.addEventListener('submit', function (e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const warningMessage = document.getElementById('password-warning');
+
+    // Only show warning if both fields are filled and they don't match
+    if (password && confirmPassword && password !== confirmPassword) {
+      e.preventDefault();
+      warningMessage.style.display = 'block';
+    } else {
+      warningMessage.style.display = 'none';
+    }
+  });
+
 </script>
 {% endblock %}
