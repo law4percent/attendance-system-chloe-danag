@@ -1,0 +1,46 @@
+attendance_system/
+│
+├── static/
+│   ├── auth/
+│   │   ├── login.css
+│   │   ├── register.css
+│   ├── instructor/
+│   │   ├── profile.css
+│   ├── student/
+│   │   ├── edit_profile.css
+│   │   ├── profile.css
+│   ├── subject/
+│   │   ├── attendance_board.css
+│   │   ├── edit_add_subjects.css
+│   │   ├── enrolled_students.css
+│   │   ├── enrollment_requests.css
+│   │   ├── list_for_attendance.css
+│   │   ├── view_attendance.css
+│   ├── about_page.css
+│   ├── base.css
+|
+├── templates/
+│   ├── auth/
+│   │   ├── login.html
+│   │   ├── register.html
+│   ├── instructor/
+│   │   ├── profile.html
+│   ├── student/
+│   │   ├── edit_profile.html
+│   │   ├── profile.html
+│   ├── subject/
+│   │   ├── attendance_board.html
+│   │   ├── edit_add_subjects.html
+│   │   ├── enrolled_students.html
+│   │   ├── enrollment_requests.html
+│   │   ├── list_for_attendance.html
+│   │   ├── view_attendance.html
+│   ├── about_page.html
+│   ├── base.html
+│
+├── venv
+├── app.py
+├── config.py
+├── app_icon.ico
+├── models.py
+└── requirements.txt

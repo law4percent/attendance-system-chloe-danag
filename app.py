@@ -9,6 +9,8 @@ from functools import wraps
 from collections import defaultdict
 from datetime import time, timedelta, date, datetime
 import requests
+import webbrowser
+from threading import Timer
 
 ESP32_IP = "192.168.1.200"  # Use your assigned static IP
 
@@ -963,6 +965,10 @@ def edit_student_profile():
 
     return render_template('student/edit_profile.html', student=student)
 
+
+def open_browser():
+    webbrowser.open_new("http://127.0.0.1:5000")
+
 if __name__ == '__main__':
-    # app.run(debug=True)
+    Timer(1, open_browser).start()
     app.run(host='0.0.0.0', port=5000)

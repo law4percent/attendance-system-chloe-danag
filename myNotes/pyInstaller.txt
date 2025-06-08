@@ -1,0 +1,13 @@
+# Converting .py to .exe using pyinstaller
+
+1. Make sure your virtual enviroment is activate. If not, run this -> venv\Scripts\activate.bat
+2. Install the pyinstaller.  
+3. Finally, run the lines below into the cmd (windows).
+
+pyinstaller --noconfirm --noconsole --onefile ^
+--icon=app_icon.ico ^
+--add-data "templates;templates" ^
+--add-data "static;static" ^
+--add-data "config.py;." ^
+--add-data "models.py;." ^
+app.py
