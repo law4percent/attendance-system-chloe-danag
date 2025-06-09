@@ -4,3 +4,4 @@ build
 dist
 app.spec
 git_token.txt
+mysql/__pycache__

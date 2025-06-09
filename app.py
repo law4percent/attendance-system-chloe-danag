@@ -8,16 +8,12 @@ import mysql.config as config
 from functools import wraps
 from collections import defaultdict
 from datetime import time, timedelta, date, datetime
-import requests
 import webbrowser
 from threading import Timer
 from threading import Thread
 import json
 import serial
-
-SERIAL_PORT = 'COM11'  # adjust as needed
-BAUD_RATE = 115200
-ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+import serial.tools.list_ports
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -28,6 +24,42 @@ app.config['MYSQL_USER'] = config.MYSQL_USER
 app.config['MYSQL_PASSWORD'] = config.MYSQL_PASSWORD
 app.config['MYSQL_DB'] = config.MYSQL_DB
 mysql = MySQL(app)
+
+
+serial_status = "[❌] Serial port not initialized"
+
+def find_serial_port(baudrate=115200):
+    ports = list(serial.tools.list_ports.comports())
+    for p in ports:
+        try:
+            s = serial.Serial(p.device, baudrate, timeout=1)
+            s.close()
+            return p.device
+        except:
+            continue
+    return None
+
+SERIAL_PORT = find_serial_port()
+BAUD_RATE = 115200
+
+try:
+    if SERIAL_PORT:
+        ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+        serial_status = f"[✅] Connected to {SERIAL_PORT}"
+    else:
+        raise serial.SerialException("No available COM port found.")
+except serial.SerialException as e:
+    serial_status = f"[ERROR] Could not open serial port: {e}"
+    ser = None
+
+
+@app.route('/serial-status')
+def get_serial_status():
+    if ser and ser.is_open:
+        return jsonify(status=f'[✅] Serial port ({SERIAL_PORT}) is available.')
+    else:
+        return jsonify(status='[❌] Serial port not available.')
+
 
 def trigger_to_start(subject_id):
     try:
@@ -1085,8 +1117,16 @@ def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000")
 
 if __name__ == '__main__':
+    # 🧠 Open the default browser after 1 second
     Timer(1, open_browser).start()
-    # 🔁 Start background listener before Flask
-    serial_thread = Thread(target=serial_listener, daemon=True)
-    serial_thread.start()
+
+    # 🔁 Start serial listener only if serial port is available
+    if ser is not None and ser.is_open:
+        serial_thread = Thread(target=serial_listener, daemon=True)
+        serial_thread.start()
+        print("✅ Serial listener started.")
+    else:
+        print("⚠️ Serial port not available. Listener not started.")
+
+    # 🚀 Run the Flask app
     app.run(host='0.0.0.0', port=5000)

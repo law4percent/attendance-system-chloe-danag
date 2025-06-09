@@ -19,6 +19,7 @@ void setup() {
 void loop() {
   // Listen for subject_id trigger from PC
   int received_subject = waitingForToTrigger();
+  
   if (received_subject != 0) {
     subject_id = received_subject;
     Serial.println("Start command received for subject " + String(subject_id));
@@ -64,6 +65,7 @@ int getFingerprintIDez() {
 int waitingForToTrigger() {
   if (Serial.available()) {
     command = Serial.readStringUntil('\n');
+
     if (command.endsWith("-start")) {
       int parsed_id = command.substring(0, command.indexOf("-")).toInt();
       return parsed_id;
@@ -74,7 +76,6 @@ int waitingForToTrigger() {
       return parsed_id;
     }
   }
-  return 0;
 }
 
 void sendFingerprintToPC(int fingerprint_id, int subject_id) {
