@@ -8,6 +8,5 @@ pyinstaller --noconfirm --noconsole --onefile ^
 --icon=app_icon.ico ^
 --add-data "templates;templates" ^
 --add-data "static;static" ^
---add-data "config.py;." ^
---add-data "models.py;." ^
+--add-data "mysql/config.py;." ^
 app.py
