@@ -11,8 +11,13 @@ from datetime import time, timedelta, date, datetime
 import requests
 import webbrowser
 from threading import Timer
+from threading import Thread
+import json
+import serial
 
-ESP32_IP = "192.168.1.200"  # Use your assigned static IP
+SERIAL_PORT = 'COM11'  # adjust as needed
+BAUD_RATE = 115200
+ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -23,6 +28,25 @@ app.config['MYSQL_USER'] = config.MYSQL_USER
 app.config['MYSQL_PASSWORD'] = config.MYSQL_PASSWORD
 app.config['MYSQL_DB'] = config.MYSQL_DB
 mysql = MySQL(app)
+
+def trigger_to_start(subject_id):
+    try:
+        if ser and ser.is_open:
+            msg = f"{subject_id}-start\n"
+            ser.write(msg.encode('utf-8'))
+            print(f">>> Sent to ESP32: {msg.strip()}")
+    except Exception as e:
+        print(f"⚠ Failed to contact ESP32: {e}")
+
+def trigger_to_stop():
+    try:
+        if ser and ser.is_open:
+            msg = f"0-stop\n"
+            ser.write(msg.encode('utf-8'))
+            print(f">>> Sent to ESP32: {msg.strip()}")
+    except Exception as e:
+        print(f"⚠ Failed to contact ESP32: {e}")
+
 
 def role_required(role):
     def decorator(f):
@@ -132,18 +156,7 @@ def subject_for_attendance():
 @app.route('/attendance/<int:subject_id>')
 @role_required('instructor')
 def subject_attendance_board(subject_id):
-    try:        
-        esp32_ip = f"http://{ESP32_IP}:5000/set_subject"
-        payload = {'subject_id': subject_id, 'status': 'start'}
-        response = requests.post(esp32_ip, json=payload, timeout=3)  # 3-second timeout
-        if response.status_code != 200:
-            print(f"ERROR: ESP32 responded with an error {response.text}")
-    except requests.exceptions.Timeout:
-        print("ESP32 request timed out.")
-    except requests.exceptions.ConnectionError:
-        print("ESP32 connection failed.")
-    except Exception as e:
-        print(f"Failed to contact ESP32: {e}")
+    trigger_to_start(subject_id) # trigger to start the ESP32 to send data
 
     print('>>>>> subject_attendance_board')
     cur = mysql.connection.cursor(DictCursor)
@@ -283,14 +296,7 @@ def finalize_attendance(subject_id):
 
     mysql.connection.commit()
 
-    try:
-        esp32_ip = f"http://{ESP32_IP}:5000/set_subject"
-        payload = {'subject_id': subject_id, 'status': 'stop'}
-        response = requests.post(esp32_ip, json=payload, timeout=3)
-        response.raise_for_status()
-    except Exception as e:
-        print("ESP32 communication failed:", e)
-        # Don't return error — just log it
+    trigger_to_stop() # trigger to stop the ESP32
 
     # Still finalize attendance
     return jsonify({'message': 'Attendance finalized successfully'}), 200
@@ -409,69 +415,86 @@ def download_attendance_excel(subject_id):
     )
 
 
-@app.route('/api/fingerprint_log', methods=['POST'])
-def fingerprint_log():
-    data = request.get_json()
-    fingerprint_id = data.get('fingerprint_id')
-    subject_id = data.get('subject_id')
+def handle_fingerprint_log(fingerprint_id, subject_id):
     today = date.today()
     now = datetime.now().time()
-
-    cur = mysql.connection.cursor(DictCursor)
-
-    # Can you fetch only the students who are enrolled only on with subject_id
-    cur.execute("""
-        SELECT id FROM students WHERE 
-            %s IN (fingerprint_id1)
-    """, (fingerprint_id,))
-    student = cur.fetchone()
-
-    if not student:
-        return jsonify({'message': 'Unknown fingerprint'}), 404
-
-    student_id = student['id']
-
-    # 2. Fetch class start time
-    # Get subject info
-    cur.execute("SELECT * FROM subjects WHERE id = %s", (subject_id,))
-    subject = cur.fetchone()
-
-    subject['start_time_str'] = timedelta_to_str(subject['class_start_time'])
-    class_start = subject['class_start_time']
     now_delta = timedelta(hours=now.hour, minutes=now.minute, seconds=now.second)
 
-    # 3. Check existing attendance
-    cur.execute("""
-        SELECT * FROM student_attendance
-        WHERE student_id = %s AND subject_id = %s AND DATE(date) = %s
-    """, (student_id, subject_id, today))
-    existing = cur.fetchone()
+    with app.app_context():
+        cur = mysql.connection.cursor()
 
-    if existing:
-        if existing['time_in'] is not None:
-            return jsonify({'message': 'Already recorded'}), 200
-        else:
+        # Check if student is enrolled and matches fingerprint
+        cur.execute("""
+            SELECT s.id AS student_id
+            FROM students s
+            JOIN student_subject_requests ssr ON s.id = ssr.student_id
+            WHERE ssr.subject_id = %s AND ssr.status = 'accepted'
+            AND s.fingerprint_id1 = %s
+        """, (subject_id, fingerprint_id))
+        student = cur.fetchone()
+
+        if not student:
+            print(f"[X] Unknown fingerprint ({fingerprint_id}) or not enrolled in subject {subject_id}.")
+            return
+
+        student_id = student[0]
+
+        # Get subject info
+        cur.execute("SELECT class_start_time FROM subjects WHERE id = %s", (subject_id,))
+        subject = cur.fetchone()
+        if not subject:
+            print("[X] Subject not found.")
+            return
+
+        class_start = subject[0]  # timedelta format
+        mark = 'check' if now_delta <= class_start + timedelta(minutes=15) else 'late'
+
+        # Check if attendance already exists
+        cur.execute("""
+            SELECT time_in FROM student_attendance
+            WHERE student_id = %s AND subject_id = %s AND DATE(date) = %s
+        """, (student_id, subject_id, today))
+        existing = cur.fetchone()
+
+        if existing and existing[0] is not None:
+            print(f"[✓] Attendance already recorded for student {student_id}.")
+        elif existing:
             cur.execute("""
                 UPDATE student_attendance 
-                SET time_in = %s, fingerprint_used = %s 
+                SET time_in = %s, fingerprint_used = %s, mark = %s
                 WHERE student_id = %s AND subject_id = %s AND DATE(date) = %s
-            """, (now, fingerprint_id, student_id, subject_id, today))
-    else:
-        # 4. Determine mark
-        if now_delta <= class_start + timedelta(minutes=15):
-            mark = 'check'
+            """, (now, fingerprint_id, mark, student_id, subject_id, today))
+            print(f"[✓] Attendance updated for student {student_id}.")
         else:
-            mark = 'late'
+            cur.execute("""
+                INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark, fingerprint_used)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (student_id, subject_id, now, today, mark, fingerprint_id))
+            print(f"[✓] Attendance recorded for student {student_id}.")
 
-        cur.execute("""
-            INSERT INTO student_attendance (student_id, subject_id, time_in, date, mark, fingerprint_used)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (student_id, subject_id, now, today, mark, fingerprint_id))
-
-    mysql.connection.commit()
-    return jsonify({'message': 'Attendance recorded'}), 200
+        mysql.connection.commit()
+        cur.close()
 
 
+def serial_listener():
+    try:
+        print(f"📡 Listening on {SERIAL_PORT}...")
+        while True:
+            if ser.in_waiting:
+                raw = ser.readline().decode('utf-8', errors='ignore').strip()
+                print("📥 Received:", raw)
+                try:
+                    data = json.loads(raw)
+                    fingerprint_id = data.get('fingerprint_id')
+                    subject_id = data.get('subject_id')
+                    if isinstance(fingerprint_id, int) and isinstance(subject_id, int):
+                        handle_fingerprint_log(fingerprint_id, subject_id)
+                    else:
+                        print("⚠️ Missing or invalid fingerprint_id/subject_id.")
+                except json.JSONDecodeError:
+                    print("⚠️ Invalid JSON received:", raw)
+    except Exception as e:
+        print("❌ Serial error:", e)
 
 
 
@@ -1063,4 +1086,7 @@ def open_browser():
 
 if __name__ == '__main__':
     Timer(1, open_browser).start()
+    # 🔁 Start background listener before Flask
+    serial_thread = Thread(target=serial_listener, daemon=True)
+    serial_thread.start()
     app.run(host='0.0.0.0', port=5000)

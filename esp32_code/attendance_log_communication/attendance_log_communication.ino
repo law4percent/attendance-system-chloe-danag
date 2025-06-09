@@ -1,72 +1,39 @@
-#include <WiFi.h>
-#include <HTTPClient.h>
 #include <Adafruit_Fingerprint.h>
 #include <HardwareSerial.h>
-#include <WebServer.h>
 #include <ArduinoJson.h>
 
-#include "wifi_credentials.h"
-
-// Replace with your WiFi credentials
-const char* ssid = SSID;
-const char* password = PASSWORD;
-
-IPAddress local_IP(192, 168, 1, 200);      // Desired static IP
-IPAddress gateway(192, 168, 1, 1);         // Typically your router's IP
-IPAddress subnet(255, 255, 255, 0);        // Subnet mask
-IPAddress primaryDNS(8, 8, 8, 8);          // Optional
-IPAddress secondaryDNS(8, 8, 4, 4);        // Optional
-
-// Flask API endpoint
-const char* flaskURL = "http://" + String(IPv4) + ":5000/api/fingerprint_log";
-
-// Subject ID (will be set via request)
-int subject_id = -1;
-bool isScanning = false;
-WebServer server(5000);
-
 // Use UART2 for fingerprint sensor (GPIO16=RX, GPIO17=TX)
-HardwareSerial fpSerial(2);
-Adafruit_Fingerprint finger = Adafruit_Fingerprint(&fpSerial);
+HardwareSerial mySerial(1);  // Use UART1 on ESP32
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+
+// Global variables
+int subject_id = 0;
+String command = "";
 
 void setup() {
-  Serial.begin(115200);
-  fpSerial.begin(57600, SERIAL_8N1, 16, 17);  // RX, TX for fingerprint
-
-  connectToWiFi();
-  triggerRoute();
-  server.begin();
-
+  Serial.begin(115200);  // USB Serial to PC
+  mySerial.begin(57600, SERIAL_8N1, 16, 17);  // RX=16, TX=17
   checkFingerprint();
-  checkFingerprintTemplate();
 }
 
 void loop() {
-  server.handleClient();
+  // Listen for subject_id trigger from PC
+  int received_subject = waitingForToTrigger();
+  if (received_subject != 0) {
+    subject_id = received_subject;
+    Serial.println("Start command received for subject " + String(subject_id));
+  }
 
-  if (!isScanning || subject_id == -1) {
+  if (subject_id == 0) {
     delay(500);
     return;
   }
 
-  uint8_t p = finger.getImage();
-  if (p != FINGERPRINT_OK) {
-    delay(500);
-    return;
-  }
-
-  p = finger.image2Tz();
-  if (p != FINGERPRINT_OK) {
-    delay(500);
-    return;
-  }
-
-  p = finger.fingerFastSearch();
-  if (p == FINGERPRINT_OK) {
-    Serial.print(">>> Found fingerprint ID #");
-    Serial.println(finger.fingerID);
-    sendFingerprintToFlask(finger.fingerID, subject_id);
-    delay(2000);  // Prevent duplicate scans
+  // Fingerprint process
+  int p = getFingerprintIDez();
+  if (p != -1) {
+    sendFingerprintToPC(p, subject_id);
+    delay(2000);  // Prevent repeated detection
   } else {
     Serial.println("Fingerprint not found");
   }
@@ -75,136 +42,72 @@ void loop() {
 }
 
 
-void connectToWiFi() {
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+// returns -1 if failed, otherwise returns ID #
+int getFingerprintIDez() {
+  uint8_t p = finger.getImage();
+  if (p != FINGERPRINT_OK)  return -1;
 
-  // Configure static IP
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-    Serial.println("❌ Failed to configure static IP");
-  }
+  p = finger.image2Tz();
+  if (p != FINGERPRINT_OK)  return -1;
 
-  WiFi.begin(ssid, password);
+  p = finger.fingerFastSearch();
+  if (p != FINGERPRINT_OK)  return -1;
 
-  int attempt = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
-    attempt++;
-    if (attempt > 20) {
-      Serial.println("❌ Failed to connect to WiFi");
-      return;
-    }
-  }
-
-  Serial.println("\n✅ WiFi connected!");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  // found a match!
+  Serial.print("Found ID #"); Serial.print(finger.fingerID);
+  Serial.print(" with confidence of "); Serial.println(finger.confidence);
+  return finger.fingerID;
 }
 
-bool reconnectToWiFi() {
-  Serial.println("WiFi not connected. Attempting to reconnect...");
-  WiFi.begin(ssid, password);
 
-  unsigned long startAttemptTime = millis();
-  const unsigned long timeout = 10000;  // 10 seconds
 
-  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < timeout) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nFailed to reconnect to WiFi. ❌");
-    return 0;
-  } else {
-    Serial.println("\nReconnected to WiFi. ✅");
-    return 1;
-  }
-}
-
-void sendFingerprintToFlask(int fingerprint_id, int subject_id) {
-  if (WiFi.status() != WL_CONNECTED) {
-    if (!reconnectToWiFi()) return;
-  }
-
-  HTTPClient http;
-  http.begin(flaskURL);
-  http.addHeader("Content-Type", "application/json");
-
-  String postData = "{\"fingerprint_id\": " + String(fingerprint_id) + ", \"subject_id\": " + String(subject_id) + "}";
-  int httpResponseCode = http.POST(postData);
-
-  if (httpResponseCode > 0) {
-    String response = http.getString();
-    Serial.println("Response: " + response);
-  } else {
-    Serial.println("Error on sending POST... retrying...");
-    int retries = 3;
-    while (httpResponseCode <= 0 && retries-- > 0) {
-        delay(1000);
-        httpResponseCode = http.POST(postData);
+int waitingForToTrigger() {
+  if (Serial.available()) {
+    command = Serial.readStringUntil('\n');
+    if (command.endsWith("-start")) {
+      int parsed_id = command.substring(0, command.indexOf("-")).toInt();
+      return parsed_id;
+    }
+    
+    if (command.endsWith("-stop")) {
+      int parsed_id = command.substring(0, command.indexOf("-")).toInt();
+      return parsed_id;
     }
   }
+  return 0;
+}
 
-  http.end();
+void sendFingerprintToPC(int fingerprint_id, int subject_id) {
+  String jsonData = "{\"fingerprint_id\": " + String(fingerprint_id) + ", \"subject_id\": " + String(subject_id) + "}";
+  Serial.println(jsonData);  // Send JSON over USB serial
 }
 
 void checkFingerprint() {
-  if (finger.begin()) {
-    Serial.println("Fingerprint sensor detected... ✅");
+  delay(5);
+  if (finger.verifyPassword()) {
+    Serial.println("Found fingerprint sensor!");
   } else {
-    Serial.println("Could not find fingerprint sensor 😥");
-    while (1) delay(1);
+    Serial.println("Did not find fingerprint sensor :(");
+    while (1) { delay(1); }
+  }
+
+  Serial.println(F("Reading sensor parameters"));
+  finger.getParameters();
+  Serial.print(F("Status: 0x")); Serial.println(finger.status_reg, HEX);
+  Serial.print(F("Sys ID: 0x")); Serial.println(finger.system_id, HEX);
+  Serial.print(F("Capacity: ")); Serial.println(finger.capacity);
+  Serial.print(F("Security level: ")); Serial.println(finger.security_level);
+  Serial.print(F("Device address: ")); Serial.println(finger.device_addr, HEX);
+  Serial.print(F("Packet len: ")); Serial.println(finger.packet_len);
+  Serial.print(F("Baud rate: ")); Serial.println(finger.baud_rate);
+
+  finger.getTemplateCount();
+
+  if (finger.templateCount == 0) {
+    Serial.print("Sensor doesn't contain any fingerprint data. Please run the 'enroll' example.");
+  }
+  else {
+    Serial.println("Waiting for valid finger...");
+      Serial.print("Sensor contains "); Serial.print(finger.templateCount); Serial.println(" templates");
   }
 }
-
-void checkFingerprintTemplate() {
-  finger.getTemplateCount();
-  Serial.print("Sensor contains ");
-  Serial.print(finger.templateCount);
-  Serial.println(" templates");
-}
-
-void triggerRoute() {
-  server.on("/set_subject", HTTP_POST, []() {
-    if (server.hasArg("plain")) {
-      String body = server.arg("plain");
-      DynamicJsonDocument doc(1024);
-      DeserializationError error = deserializeJson(doc, body);
-
-      if (error) {
-        Serial.println("Failed to parse JSON");
-        server.send(400, "application/json", "{\"error\": \"Invalid JSON\"}");
-        return;
-      }
-
-      if (doc.containsKey("subject_id") && doc.containsKey("status")) {
-        subject_id = doc["subject_id"];
-        String status = doc["status"];
-        isScanning = (status == "start");
-
-        Serial.print("Received subject_id: ");
-        Serial.println(subject_id);
-        Serial.print("Scanning status: ");
-        Serial.println(isScanning ? "STARTED" : "STOPPED");
-
-        server.send(200, "application/json", "{\"status\": \"subject_id and scan status updated\"}");
-      } else {
-        server.send(400, "application/json", "{\"error\": \"Missing subject_id or status\"}");
-      }
-    } else {
-      server.send(400, "application/json", "{\"error\": \"No data received\"}");
-    }
-  });
-
-  // Add GET /status route for debugging
-  server.on("/status", HTTP_GET, []() {
-    String response = "{";
-    response += "\"subject_id\": " + String(subject_id) + ",";
-    response += "\"isScanning\": " + String(isScanning ? "true" : "false");
-    response += "}";
-    server.send(200, "application/json", response);
-  });
-}
-
